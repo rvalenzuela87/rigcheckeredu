@@ -1,0 +1,48 @@
+{
+  "studio": "Ploop Animation & VFX",
+  "controls_suffix": "",
+  "controls_type": "nurbsCurve",
+  "controls_expression": "(.)*_(ctrl|Ctrl|cntrl|Cntrl)$",
+  "selected_controls_discovery_methods": ["expression"],
+  "forbidden_types": [],
+  "validations":  {
+    "controls": [
+      {
+        "type": "name_structure",
+        "params": {"name_expression": "(.)*_(ctrl|Ctrl|cntrl|Cntrl)$"}
+      },
+      {
+        "type": "storage",
+        "params": {"parent_path": "controls_grp"}
+      },
+      {
+        "type": "node_type",
+        "params": {"node_type": "nurbsCurve"}
+      }
+    ],
+    "joint": [
+      {
+        "type": "name_structure",
+        "params": {"name_expression": "(.)*_(jnt|Jnt)$"}
+      },
+      {
+        "type": "storage",
+        "params": {"parent_path": "joints_grp"}
+      },
+      {
+        "type": "attribute_value",
+        "params": {"attribute_name": "", "attribute_value": ""}
+      }
+    ],
+    "ikHandle": [
+      {
+        "type": "name_structure",
+        "params": {"name_expression": "(.)*_(sc|SC|Sc|rp|RP|Rp|sp|SP|Sp)_(ik|Ik|IK)$"}
+      },
+      {
+        "type": "storage",
+        "params": {"parent_path": "misc_grp"}
+      }
+    ]
+  }
+}
