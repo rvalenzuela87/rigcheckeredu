@@ -2,10 +2,26 @@ import json
 import os
 import re
 
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 
 CONF = None
 DEF_CONF = None
+
+# ##############################
+#
+# Read Configuration
+#
+# ##############################
+
+def get_conf_file_path():
+	conf_dir_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+
+	return os.path.join(conf_dir_path, "config", "config.json")
+
+
+def get_def_conf_file_path():
+	return os.path.join(os.path.dirname(__file__), "config", "default.json")
+
 
 def get_conf():
 	global CONF
@@ -15,13 +31,19 @@ def get_conf():
 	except AssertionError:
 		return CONF
 
-	conf_dir_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-
 	try:
-		CONF = json.load(open(os.path.join(conf_dir_path, "config", "config.json")))
+		conf_file = open(get_conf_file_path(), 'r')
 	except(RuntimeError, Exception):
-		# A custom configuration file may not exist. Therefore, load the default configuration
-		CONF = json.load(open(os.path.join(os.path.dirname(__file__), "config", "default.json")))
+		# A user configuration file doesn't exists. Therefore, resort to the default configuration
+		CONF = get_def_conf()
+	else:
+		try:
+			CONF = json.load(conf_file, object_pairs_hook=OrderedDict)
+		except(ValueError, RuntimeError, Exception):
+			conf_file.close()
+			raise
+		else:
+			conf_file.close()
 
 	return CONF
 
@@ -35,11 +57,21 @@ def get_def_conf():
 		return DEF_CONF
 
 	try:
-		DEF_CONF = json.load(open(os.path.join(os.path.dirname(__file__), "config", "default.json")))
+		def_conf_file = open(get_def_conf_file_path(), 'r')
+	except(RuntimeError, Exception):
+		if os.path.exists(get_conf_file_path()) is False:
+			raise FileNotFoundError("Unable to find a default configuration file, default.json")
+		else:
+			raise
+
+	try:
+		DEF_CONF = json.load(def_conf_file, object_pairs_hook=OrderedDict)
 	except(RuntimeError, Exception):
 		# A default configuration doesn't exist. Raise the appropriate exception
-		raise RuntimeError("Unable to find a default configuration file, default.json")
+		def_conf_file.close()
+		raise RuntimeError("File default.json doesn't contain a valid JSON")
 
+	def_conf_file.close()
 	return DEF_CONF
 
 
@@ -331,3 +363,74 @@ def get_geo_group_discovery_data():
 			discovery_data[k] = get_geo_group_expression()
 
 	return discovery_data
+
+
+# ##############################
+#
+# Modify Configuration
+#
+# ##############################
+
+
+def reset_conf_to_default():
+	# Assume a custom config file already exists or create a new one, otherwise
+	try:
+		config_file = open(get_conf_file_path(), 'w')
+	except(RuntimeError, Exception):
+		raise
+
+	try:
+		json.dump(get_def_conf(), config_file, indent=2, sort_keys=False)
+	except(RuntimeError, Exception):
+		config_file.close()
+		raise
+
+	# Force the configuration to reload
+	global CONF
+
+	CONF = None
+	config_file.close()
+
+	return True
+
+
+def save_conf(config):
+	mod_conf = get_conf()
+
+	for k in config.keys():
+		mod_conf[k] = config[k]
+
+	try:
+		conf_file = open(get_conf_file_path(), 'w')
+	except(RuntimeError, Exception):
+		raise
+
+	try:
+		json.dump(mod_conf, conf_file, sort_keys=False, indent=2)
+	except(RuntimeError, Exception):
+		conf_file.close()
+		raise
+
+	# Force the configuration to reload
+	global CONF
+
+	CONF = None
+	conf_file.close()
+
+	return True
+
+
+def reload_conf():
+	global CONF
+
+	CONF = None
+
+	return get_conf()
+
+
+def reload_def_conf():
+	global DEF_CONF
+
+	DEF_CONF = None
+
+	return get_def_conf()
