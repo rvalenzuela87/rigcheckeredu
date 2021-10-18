@@ -1,40 +1,243 @@
+from collections import OrderedDict
+
 from PySide2.QtWidgets import QWidget, QGroupBox, QComboBox, QLineEdit, QPushButton, QFormLayout, QVBoxLayout
-from PySide2.QtWidgets import QHBoxLayout, QButtonGroup, QCheckBox, QScrollArea, QMessageBox, QLabel
-from PySide2.QtGui import QRegExpValidator
+from PySide2.QtWidgets import QHBoxLayout, QGridLayout, QButtonGroup, QCheckBox, QScrollArea, QMessageBox, QLabel
+from PySide2.QtWidgets import QSizePolicy
+from PySide2.QtGui import QRegExpValidator, QPalette, QBrush, QColor
 from PySide2.QtCore import Qt, Signal, Slot, QRegExp, Property
 
-from .widgets import FlowLayout
+from .widgets import FlowLayout, ClickableLabel, ResizeScrollAreaWidgetEventFilter
 from .. import getconf
 reload(getconf)
 
+
 class BlockLabel(QWidget):
-	__text = None
+	__text_label = None
 	__close_button = None
 
 	def __init__(self, text, *args, **kwargs):
 		super(BlockLabel, self).__init__(*args, **kwargs)
 
-		self.__text = Property(str, self.text, self.setText)
-		self.__close_button = Property(QPushButton, self.closeButton, None)
+		self.setLayout(QGridLayout(self))
+		self.layout().setContentsMargins(5, 5, 5, 5)
+
+		self.__text_label = QLabel(self)
+		self.__close_button = ClickableLabel.ClickableLabel("x", self)
+		self.__close_button.setSizePolicy(
+			QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+		)
+		self.__close_button.clicked.connect(self.delete)
+
+		self.layout().addWidget(self.__text_label, 0, 0)
+		self.layout().addWidget(self.__close_button, 0, 1)
 
 		if text is not None:
 			self.setText(text)
 
+		palette = self.palette()
+
+		for role in [QPalette.Active, QPalette.Inactive]:
+			palette.setBrush(role, QPalette.Window, QBrush(QColor(255, 0, 0)))
+			palette.setBrush(role, QPalette.Base, QBrush(QColor(255, 0, 0)))
+			palette.setBrush(role, QPalette.Text, QBrush(QColor(255, 255, 255)))
+
+		self.setPalette(palette)
+		self.setAutoFillBackground(True)
+
 	def text(self):
-		return self.__text
+		return self.__text_label.text()
 
 	def setText(self, text):
-		self.__text = text
+		self.__text_label.setText(text)
 
 	def closeButton(self):
 		return self.__close_button
 
+	@Slot()
 	def delete(self):
-		pass
+		self.setVisible(False)
+		self.setParent(None)
+		self.deleteLater()
+
+
+class TypeConfEditForm(QGroupBox):
+	__title = None
+	__discovery_methods = None
+	__selected_discovery_methods = None
+
+	suffix_line_edit = None
+	exp_line_edit = None
+	types_layout = None
+	discovery_buttons_group = None
+	discovery_methods_layout = None
+
+	def __init__(self, title, conf, *args, **kwargs):
+		super(TypeConfEditForm, self).__init__(*args, **kwargs)
+
+		if title is not None:
+			self.setTitle(title)
+
+		self.setLayout(QFormLayout(self))
+
+		self.suffix_line_edit = QLineEdit(self)
+		self.suffix_line_edit.setValidator(QRegExpValidator(QRegExp("[a-zA-Z0-9_]*"), self))
+
+		self.exp_line_edit = QLineEdit(self)
+
+		'''self.off_grp_suffix_line_edit = QLineEdit(self)
+		self.off_grp_suffix_line_edit.setValidator(QRegExpValidator(QRegExp("[a-zA-Z0-9_]*"), self))
+
+		self.off_grp_exp_line_edit = QLineEdit(self)'''
+
+		self.types_layout = QVBoxLayout(self.types_layout)
+		self.types_layout.setAlignment(Qt.AlignTop)
+		self.types_layout.setContentsMargins(0, 0, 0, 0)
+
+		self.discovery_methods_layout = QVBoxLayout(self)
+		self.discovery_methods_layout.setAlignment(Qt.AlignTop)
+		self.discovery_methods_layout.setContentsMargins(0, 0, 0, 0)
+
+		self.discovery_buttons_group = QButtonGroup(self)
+		self.discovery_buttons_group.setExclusive(False)
+
+		self.layout().addRow("Suffix:", self.suffix_line_edit)
+		self.layout().addRow("Expression:", self.exp_line_edit)
+		self.layout().addRow("Types:", self.types_layout)
+		'''self.layout().addRow("Offset group suffix:", self.off_grp_suffix_line_edit)
+		self.layout().addRow("Offset group expression:", self.off_grp_exp_line_edit)'''
+		self.layout().addRow("Find by:", self.discovery_methods_layout)
+	
+	'''@Property(str)
+	def title(self):
+		return self.__title
+	
+	@title.setter
+	def title(self, title):
+		self.__title = title'''
+
+		
+	@Property(str)
+	def suffix(self):
+		return self.suffix_line_edit.text()
+
+	@suffix.setter
+	def suffix(self, suffix):
+		self.suffix_line_edit.setText(suffix)
+
+	@Property(str)
+	def expression(self):
+		return self.exp_line_edit.text()
+
+	@expression.setter
+	def expression(self, exp):
+		self.exp_line_edit.setText(exp)
+
+	@Property(list)
+	def types(self):
+		return [bl.text().lower() for bl in self.types_layout.children() if type(bl) == BlockLabel]
+
+	@types.setter
+	def setTypes(self, types):
+		for w in self.types_layout.children():
+			w.setVisible(False)
+			self.types_layout.removeWidget(w)
+			w.delete()
+
+		for t in types:
+			type_block = BlockLabel(t, self)
+			self.types_layout.addWidget(type_block)
+
+	@Property(list)
+	def discoveryMethods(self):
+		return [cb.text().lower() for cb in self.discovery_buttons_group.buttons()]
+
+	@discoveryMethods.setter
+	def setDiscoveryMethods(self, methods):
+		for cb in self.discovery_buttons_group.buttons():
+			cb.setVisible(False)
+			cb.setParent(None)
+			self.discovery_methods_layout.removeWidget(cb)
+			self.discovery_buttons_group.removeButton(cb)
+			cb.deleteLater()
+
+		for m in methods:
+			method_checkbox = QCheckBox(m, self)
+			self.discovery_methods_layout.addWidget(method_checkbox)
+			self.discovery_buttons_group.addButton(method_checkbox)
+
+		self.discovery_methods_layout.update()
+
+	def addDiscoveryMethod(self, name):
+		method_checkbox = QCheckBox(name, controls_conf_box)
+		self.discovery_methods_layout.addWidget(method_checkbox)
+		self.discovery_buttons_group.addButton(method_checkbox)
+
+	def removeDiscoveryMethod(self, name):
+		for cb in self.discovery_buttons_group.buttons():
+			if cb.text().lower() == name:
+				cb.setVisible(False)
+				cb.setParent(0)
+				self.discovery_methods_layout.removeWidget(cb)
+				self.discovery_buttons_group.removeButton(cb)
+				cb.deleteLater()
+				break
+
+	@Property(list)
+	def selectedDiscoveryMethods(self):
+		return [cb.text() for cb in self.discovery_buttons_group.buttons() if cb.isChecked() is True]
+
+	@selectedDiscoveryMethods.setter
+	def setSelectedDiscoveryMethods(self, selected):
+		for cb in self.discovery_buttons_group.buttons():
+			if cb.text().lower() in selected:
+				cb.setChecked(True)
+			else:
+				cb.setChecked(False)
+
+	@Property(dict)
+	def configurationValues(self):
+		conf_values = OrderedDict()
+
+		for attr in ("suffix", "exp"):
+			conf_values[attr] = self.__getattribute__("_".join([attr, "line_edit"])).text()
+
+		conf_values["types"] = self.types
+		conf_values["selected_discovery_methods"] = self.selectedDiscoveryMethods
+
+		return conf_values
+
+	@configurationValues.setter
+	def setConfigurationValues(self, conf):
+		for attr in ("suffix", "exp"):
+			try:
+				self.__getattribute__("_".join([attr, "line_edit"])).setText(conf[attr])
+			except TypeError:
+				return False
+			except KeyError:
+				pass
+
+		try:
+			self.setDiscoveryMethods(conf["discovery_methods"])
+		except KeyError:
+			pass
+
+		try:
+			self.setSelectedDiscoveryMethods(conf["selected_discovery_methods"])
+		except KeyError:
+			pass
+
+		try:
+			self.setTypes(conf["types"])
+		except KeyError:
+			pass
+
+		self.resize(self.layout().sizeHint())
 
 
 class ConfigView(QWidget):
-	geo_suffix_line_edit = None
+	__scroll_area = None
+
+	'''geo_suffix_line_edit = None
 	geo_exp_line_edit = None
 
 	joints_suffix_line_edit = None
@@ -42,12 +245,13 @@ class ConfigView(QWidget):
 
 	controls_suffix_line_edit = None
 	controls_exp_line_edit = None
+	controls_types_widget = None
 	off_grp_suffix_line_edit = None
 	off_grp_exp_line_edit = None
 
 	geo_discovery_buttons_group = None
 	joints_discovery_buttons_group = None
-	controls_discovery_buttons_group = None
+	controls_discovery_buttons_group = None'''
 
 	save_config_button = None
 	set_to_default_config_button = None
@@ -59,8 +263,13 @@ class ConfigView(QWidget):
 
 		self.setLayout(QVBoxLayout(self))
 
-		scroll_area = QScrollArea(self)
-		central_widget = QWidget(scroll_area)
+		self.__scroll_area = QScrollArea(self)
+		self.__scroll_area.installEventFilter(
+			ResizeScrollAreaWidgetEventFilter.ResizeScrollAreaWidgetEventFilter(
+				self, update_width=True, update_height=True
+			)
+		)
+		central_widget = QWidget(self.__scroll_area)
 		central_widget.setLayout(QVBoxLayout(central_widget))
 		central_widget.layout().setContentsMargins(0, 0, 0, 0)
 
@@ -69,8 +278,23 @@ class ConfigView(QWidget):
 
 		self.set_to_default_config_button = QPushButton("Set to default", self)
 		self.set_to_default_config_button.clicked.connect(self.showResetToDefaultDialog)
+		
+		for t in ["Controls", "Joints", "Geo"]:
+			central_widget.layout().addWidget(TypeConfEditForm(t, None, central_widget))
 
-		self.geo_discovery_buttons_group = QButtonGroup(self)
+		buttons_layout = QHBoxLayout(self)
+		buttons_layout.addWidget(self.save_config_button)
+		buttons_layout.addWidget(self.set_to_default_config_button)
+
+		self.__scroll_area.setWidget(central_widget)
+
+		self.layout().addWidget(self.__scroll_area)
+		self.layout().addLayout(buttons_layout)
+
+		if conf is not None:
+			self.setConfigurationValues(conf)
+
+		'''self.geo_discovery_buttons_group = QButtonGroup(self)
 		self.geo_discovery_buttons_group.setExclusive(False)
 
 		self.joints_discovery_buttons_group = QButtonGroup(self)
@@ -84,6 +308,11 @@ class ConfigView(QWidget):
 		controls_discovery_methods_layout = QVBoxLayout(controls_conf_box)
 		controls_discovery_methods_layout.setAlignment(Qt.AlignTop)
 		controls_discovery_methods_layout.setContentsMargins(0, 0, 0, 0)
+
+		self.controls_types_widget = QWidget(controls_conf_box)
+		self.controls_types_widget.setLayout(QVBoxLayout(self.controls_types_widget))
+		self.controls_types_widget.layout().setAlignment(Qt.AlignTop)
+		self.controls_types_widget.layout().setContentsMargins(0, 0, 0, 0)
 
 		for dm in getconf.get_controls_discovery_methods():
 			method_checkbox = QCheckBox(dm, controls_conf_box)
@@ -132,9 +361,9 @@ class ConfigView(QWidget):
 
 		self.joints_exp_line_edit = QLineEdit(joints_conf_box)
 
-
 		controls_conf_box.layout().addRow("Controls suffix:", self.controls_suffix_line_edit)
 		controls_conf_box.layout().addRow("Controls expression:", self.controls_exp_line_edit)
+		controls_conf_box.layout().addRow("Controls types:", self.controls_types_widget)
 		controls_conf_box.layout().addRow("Offset group suffix:", self.off_grp_suffix_line_edit)
 		controls_conf_box.layout().addRow("Offset group expression:", self.off_grp_exp_line_edit)
 		controls_conf_box.layout().addRow("Find by:", controls_discovery_methods_layout)
@@ -156,31 +385,40 @@ class ConfigView(QWidget):
 		buttons_layout.addWidget(self.save_config_button)
 		buttons_layout.addWidget(self.set_to_default_config_button)
 
-		scroll_area.setWidget(central_widget)
+		self.__scroll_area.setWidget(central_widget)
 
-		self.layout().addWidget(scroll_area)
+		self.layout().addWidget(self.__scroll_area)
 		self.layout().addLayout(buttons_layout)
 
 		if conf is not None:
-			self.setConfigurationValues(conf)
+			self.setConfigurationValues(conf)'''
+	
+	@Property(OrderedDict)
+	def editForms(self):
+		forms = OrderedDict()
 
-	@Slot()
+		for w in self.__scroll_area.widget().findChildren(TypeConfEditForm):
+			forms[w.title().lower()] = w
+
+		return forms
+
+	@Property(OrderedDict)
+	def configurationValues(self):
+		conf_values = OrderedDict()
+		edit_forms = self.editForms
+
+		for k in edit_forms:
+			conf_values[k] = edit_forms[k].configurationValues
+
+		return conf_values
+
+	@configurationValues.setter
 	def setConfigurationValues(self, conf):
-		for section in ("controls", "joints", "geo"):
-			for attr in ("suffix", "exp"):
-				try:
-					self.__getattribute__("_".join([section, attr, "line_edit"])).setText(conf[section][attr])
-				except TypeError:
-					return False
-				except KeyError:
-					continue
+		forms = self.editForms
 
+		for k in conf.keys():
 			try:
-				for m in conf[section]["selected_discovery_methods"]:
-					for b in self.__getattribute__("_".join([section, "discovery_buttons_group"])).buttons():
-						if b.text().lower() == m:
-							b.setChecked(True)
-							break
+				forms[k].setConfigurationValues(conf[k])
 			except KeyError:
 				continue
 
@@ -195,7 +433,6 @@ class ConfigView(QWidget):
 			print("Saving changes to config file...")
 		else:
 			print("Changes to config file were discarded")
-
 
 	@Slot()
 	def showResetToDefaultDialog(self):
