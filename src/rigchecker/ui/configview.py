@@ -1,14 +1,16 @@
 from collections import OrderedDict
 
-from PySide2.QtWidgets import QWidget, QGroupBox, QComboBox, QLineEdit, QPushButton, QFormLayout, QVBoxLayout
+from PySide2.QtWidgets import QWidget, QGroupBox, QComboBox, QLineEdit, QPushButton, QFormLayout, QVBoxLayout, QDialog
 from PySide2.QtWidgets import QHBoxLayout, QGridLayout, QButtonGroup, QCheckBox, QScrollArea, QMessageBox, QLabel
 from PySide2.QtWidgets import QSizePolicy
 from PySide2.QtGui import QRegExpValidator, QPalette, QBrush, QColor
-from PySide2.QtCore import Qt, Signal, Slot, QRegExp, Property
+from PySide2.QtCore import Qt, Signal, Slot, QRegExp, Property, QObject
 
+from . import configcontroller
 from .widgets import FlowLayout, ClickableLabel, ResizeScrollAreaWidgetEventFilter
 from .. import getconf
 reload(getconf)
+reload(configcontroller)
 
 
 class BlockLabel(QWidget):
@@ -60,6 +62,56 @@ class BlockLabel(QWidget):
 		self.deleteLater()
 
 
+class NewTypeDialog(QDialog):
+	__type_name_line_edit = None
+	__add_button = None
+	__cancel_button = None
+
+	# Signals
+	add_type = Signal(str)
+
+	def __init__(self, *args, **kwargs):
+		super(NewTypeDialog, self).__init__(*args, **kwargs)
+
+		self.setWindowTitle("Add type")
+
+		self.setLayout(QVBoxLayout(self))
+
+		self.__type_name_line_edit = QLineEdit(self)
+		self.__add_button = QPushButton("Add", self)
+		self.__add_button.clicked.connect(self.emitAddType)
+		self.__add_button.setDefault(True)
+
+		self.__cancel_button = QPushButton("Cancel", self)
+		self.__cancel_button.clicked.connect(self.reject)
+
+		new_type_form_layout = QFormLayout(self)
+		new_type_form_layout.setContentsMargins(0, 0, 0, 0)
+
+		buttons_layout = QHBoxLayout(self)
+		buttons_layout.setContentsMargins(0, 0, 0, 0)
+
+		buttons_layout.addWidget(self.__add_button)
+		buttons_layout.addWidget(self.__cancel_button)
+
+		new_type_form_layout.addRow("Type name:", self.__type_name_line_edit)
+
+		self.layout().addLayout(new_type_form_layout)
+		self.layout().addLayout(buttons_layout)
+
+	@Property(str)
+	def typeName(self):
+		return self.__type_name_line_edit.text()
+
+	@typeName.setter
+	def setTypeName(self, type_name):
+		self.__type_name_line_edit.setText(type_name)
+
+	@Slot()
+	def emitAddType(self):
+		self.add_type.emit(self.typeName)
+
+
 class TypeConfEditForm(QGroupBox):
 	__title = None
 	__discovery_methods = None
@@ -67,9 +119,14 @@ class TypeConfEditForm(QGroupBox):
 
 	suffix_line_edit = None
 	exp_line_edit = None
+	add_type_button = None
 	types_layout = None
 	discovery_buttons_group = None
 	discovery_methods_layout = None
+
+	# Signals
+	type_added = Signal()
+	received_empty_type = Signal()
 
 	def __init__(self, title, conf, *args, **kwargs):
 		super(TypeConfEditForm, self).__init__(*args, **kwargs)
@@ -84,14 +141,19 @@ class TypeConfEditForm(QGroupBox):
 
 		self.exp_line_edit = QLineEdit(self)
 
+		self.add_type_button = ClickableLabel.ClickableLabel("Add type", self)
+		self.add_type_button.clicked.connect(self.__showAddNewTypeDialog)
+
 		'''self.off_grp_suffix_line_edit = QLineEdit(self)
 		self.off_grp_suffix_line_edit.setValidator(QRegExpValidator(QRegExp("[a-zA-Z0-9_]*"), self))
 
 		self.off_grp_exp_line_edit = QLineEdit(self)'''
 
-		self.types_layout = QVBoxLayout(self.types_layout)
+		self.types_layout = QVBoxLayout(self)
 		self.types_layout.setAlignment(Qt.AlignTop)
 		self.types_layout.setContentsMargins(0, 0, 0, 0)
+
+		self.types_layout.addWidget(self.add_type_button)
 
 		self.discovery_methods_layout = QVBoxLayout(self)
 		self.discovery_methods_layout.setAlignment(Qt.AlignTop)
@@ -106,6 +168,14 @@ class TypeConfEditForm(QGroupBox):
 		'''self.layout().addRow("Offset group suffix:", self.off_grp_suffix_line_edit)
 		self.layout().addRow("Offset group expression:", self.off_grp_exp_line_edit)'''
 		self.layout().addRow("Find by:", self.discovery_methods_layout)
+
+	@Slot()
+	def __showAddNewTypeDialog(self):
+		new_type_dialog = NewTypeDialog(self)
+		new_type_dialog.add_type.connect(self.addType)
+		new_type_dialog.show()
+
+		return new_type_dialog
 	
 	'''@Property(str)
 	def title(self):
@@ -115,7 +185,6 @@ class TypeConfEditForm(QGroupBox):
 	def title(self, title):
 		self.__title = title'''
 
-		
 	@Property(str)
 	def suffix(self):
 		return self.suffix_line_edit.text()
@@ -134,18 +203,28 @@ class TypeConfEditForm(QGroupBox):
 
 	@Property(list)
 	def types(self):
-		return [bl.text().lower() for bl in self.types_layout.children() if type(bl) == BlockLabel]
+		return [bl.text().lower() for bl in self.types_layout.parentWidget().findChildren(BlockLabel)]
 
 	@types.setter
-	def setTypes(self, types):
-		for w in self.types_layout.children():
+	def setTypes(self, types_list):
+		for w in self.types_layout.parentWidget().findChildren(BlockLabel):
 			w.setVisible(False)
 			self.types_layout.removeWidget(w)
 			w.delete()
 
-		for t in types:
+		types_list.reverse()
+
+		for t in types_list:
 			type_block = BlockLabel(t, self)
-			self.types_layout.addWidget(type_block)
+			self.types_layout.insertWidget(0, type_block)
+
+	@Slot(str)
+	def addType(self, type_name):
+		if len(type_name) == 0:
+			self.received_empty_type.emit()
+		else:
+			self.types_layout.insertWidget(0, BlockLabel(type_name, self))
+			self.type_added.emit()
 
 	@Property(list)
 	def discoveryMethods(self):
@@ -202,6 +281,7 @@ class TypeConfEditForm(QGroupBox):
 			conf_values[attr] = self.__getattribute__("_".join([attr, "line_edit"])).text()
 
 		conf_values["types"] = self.types
+		conf_values["discovery_methods"] = self.discoveryMethods
 		conf_values["selected_discovery_methods"] = self.selectedDiscoveryMethods
 
 		return conf_values
@@ -235,6 +315,7 @@ class TypeConfEditForm(QGroupBox):
 
 
 class ConfigView(QWidget):
+	__controller = None
 	__scroll_area = None
 
 	'''geo_suffix_line_edit = None
@@ -290,6 +371,8 @@ class ConfigView(QWidget):
 
 		self.layout().addWidget(self.__scroll_area)
 		self.layout().addLayout(buttons_layout)
+
+		self.setController(configcontroller.ConfigController(self))
 
 		if conf is not None:
 			self.setConfigurationValues(conf)
@@ -392,6 +475,32 @@ class ConfigView(QWidget):
 
 		if conf is not None:
 			self.setConfigurationValues(conf)'''
+
+	@Slot(str)
+	def __showSuccessMessage(self, mssg):
+		success_message_box = QMessageBox.information(self, "Success", mssg)
+
+		return success_message_box
+
+	@Slot(str)
+	def __showErrorMessage(self, mssg):
+		error_message_box = QMessageBox.critical(self, "Error", mssg)
+
+		return error_message_box
+
+	@Property(QObject)
+	def controller(self):
+		return self.__controller
+
+	@controller.setter
+	def setController(self, controller):
+		self.__controller = controller
+
+		controller.configuration_saved[str].connect(self.__showSuccessMessage)
+		controller.save_configuration_failed[str].connect(self.__showErrorMessage)
+		controller.configuration_reset[str].connect(self.__showSuccessMessage)
+		controller.configuration_reset[dict].connect(self.setConfigurationValues)
+		controller.reset_configuration_failed[str].connect(self.__showErrorMessage)
 	
 	@Property(OrderedDict)
 	def editForms(self):
@@ -430,9 +539,7 @@ class ConfigView(QWidget):
 		)
 
 		if answer == QMessageBox.Yes:
-			print("Saving changes to config file...")
-		else:
-			print("Changes to config file were discarded")
+			self.controller.saveConfiguration(self.configurationValues)
 
 	@Slot()
 	def showResetToDefaultDialog(self):
@@ -442,6 +549,4 @@ class ConfigView(QWidget):
 		)
 
 		if answer == QMessageBox.Yes:
-			print("Config file reset to default...")
-		else:
-			print("Config file was not reset to default")
+			self.controller.resetConfiguration()

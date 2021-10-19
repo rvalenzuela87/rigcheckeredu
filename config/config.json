@@ -1,0 +1,112 @@
+{
+  "name": "Default", 
+  "geo": {
+    "suffix": "geo", 
+    "exp": ".*_geo_(\\d\\d)$", 
+    "types": [
+      "mesh"
+    ], 
+    "discovery_methods": [
+      "expression", 
+      "suffix", 
+      "type", 
+      "location"
+    ], 
+    "selected_discovery_methods": [
+      "type"
+    ]
+  }, 
+  "joints": {
+    "suffix": "", 
+    "exp": "", 
+    "types": [
+      "joint"
+    ], 
+    "discovery_methods": [
+      "expression", 
+      "suffix", 
+      "type", 
+      "location"
+    ], 
+    "selected_discovery_methods": [
+      "type"
+    ]
+  }, 
+  "controls": {
+    "suffix": "ctrl", 
+    "exp": "", 
+    "types": [
+      "nurbscurve"
+    ], 
+    "discovery_methods": [
+      "expression", 
+      "suffix", 
+      "type", 
+      "location"
+    ], 
+    "selected_discovery_methods": [
+      "suffix"
+    ]
+  }, 
+  "geo_grp": {
+    "suffix": "geo_grp", 
+    "exp": "(.)*_geo_grp$", 
+    "discovery_methods": [
+      "expression", 
+      "suffix"
+    ], 
+    "selected_discovery_methods": [
+      "suffix"
+    ]
+  }, 
+  "rig_grp": {
+    "suffix": "rig_grp", 
+    "exp": "(.)*_rig_grp$", 
+    "discovery_methods": [
+      "expression", 
+      "suffix"
+    ], 
+    "selected_discovery_methods": [
+      "suffix"
+    ]
+  }, 
+  "forbidden_types": [], 
+  "validations": {
+    "geo": [
+      {
+        "type": "node_type", 
+        "params": {
+          "node_type": "mesh"
+        }
+      }
+    ], 
+    "controls": [
+      {
+        "type": "node_type", 
+        "params": {
+          "node_type": "nurbsCurve"
+        }
+      }, 
+      {
+        "type": "node_zeroed", 
+        "params": {}
+      }
+    ], 
+    "joint": [
+      {
+        "type": "node_visibility", 
+        "params": {
+          "visible": 0
+        }
+      }
+    ], 
+    "ikHandle": [
+      {
+        "type": "node_visibility", 
+        "params": {
+          "visible": 0
+        }
+      }
+    ]
+  }
+}
