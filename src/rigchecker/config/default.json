@@ -17,7 +17,7 @@
     "selected_discovery_methods": ["type"]
   },
   "controls": {
-    "suffix": "ctrl",
+    "suffix": "Controler",
     "exp": "",
     "types": ["nurbsCurve"],
     "locations": [],

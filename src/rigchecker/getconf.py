@@ -195,7 +195,7 @@ def get_joints_discovery_data():
 			discovery_data.append(get_joints_suffix())
 		elif m == "expression":
 			discovery_data.append(get_joints_expression())
-		elif m == "types":
+		elif m == "type":
 			discovery_data.append(get_joints_types())
 		else:
 			discovery_data.append(None)
@@ -258,7 +258,7 @@ def get_controls_discovery_data():
 			discovery_data.append(get_controls_suffix())
 		elif m == "expression":
 			discovery_data.append(get_controls_expression())
-		elif m == "types":
+		elif m == "type":
 			discovery_data.append(get_controls_types())
 		else:
 			discovery_data.append(None)

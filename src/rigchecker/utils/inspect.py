@@ -9,6 +9,7 @@ maya_useNewAPI = True
 
 GEO_DISCOVERY_DATA = None
 CONTROLS_DISCOVERY_DATA = None
+JOINTS_DISCOVERY_DATA = None
 ACCEPTED_CONTROLS_TYPE = None
 OFFSET_GROUPS_DISCOVERY_DATA = None
 GEO_GROUP_DISCOVERY_DATA = None
@@ -66,7 +67,7 @@ def get_geos_in_scene_gen():
 			continue
 
 		try:
-			assert GEO_DISCOVERY_DATA.exp.match(geo_name) is not None
+			assert GEO_DISCOVERY_DATA.expression.match(geo_name) is not None
 		except AttributeError:
 			# There isn't a suffix specification for finding geos in the scene. Therefore, ignore this error and
 			# continue on
@@ -106,8 +107,8 @@ def get_controls_in_scene_gen():
 	for node_name in cmds.ls():
 		# Assume controls_names_exp is not None
 		try:
-			assert CONTROLS_DISCOVERY_DATA["expression"].match(node_name) is not None
-		except(KeyError, AttributeError):
+			assert CONTROLS_DISCOVERY_DATA.expression.match(node_name) is not None
+		except(AttributeError, AttributeError):
 			# Expressions is not a method of discovery. Therefore, ignore this error and continue on
 			pass
 		except AssertionError:
@@ -117,18 +118,18 @@ def get_controls_in_scene_gen():
 
 		# Assume controls_type is not None
 		try:
-			assert cmds.nodeType(node_name) == CONTROLS_DISCOVERY_DATA["type"]
+			assert cmds.nodeType(node_name) in CONTROLS_DISCOVERY_DATA.type
 		except AssertionError:
 			# The node's type is not supported. Therefore, ignore it and continue with the next node name
 			continue
-		except(KeyError, ValueError):
+		except(AttributeError, TypeError, ValueError, RuntimeError):
 			# Type is not a method of discovery. Therefore, ignore this error and continue on
 			pass
 
 		# Assume controls_suffix is not None
 		try:
-			assert node_name.endswith(CONTROLS_DISCOVERY_DATA["suffix"])
-		except(KeyError, ValueError, RuntimeError):
+			assert node_name.endswith(CONTROLS_DISCOVERY_DATA.suffix)
+		except(AttributeError, ValueError, RuntimeError):
 			# Suffixes is not a method of discovery. Therefore, ignore this error and continue on
 			pass
 		except AssertionError:
@@ -147,14 +148,51 @@ def get_controls_in_scene_list():
 
 
 def get_joints_in_scene_gen():
-	joints_sel_list = om.MSelectionList()
+	"""
+	Returns a generator for all the joints nodes in the scene which match the filters specified via the configuration
+	file.
 
-	for joint_name in cmds.ls(type="joint"):
-		joints_sel_list.clear()
-		joints_sel_list.add(joint_name)
+	@return: (MObject,...)
+	@rtype: generator
+	"""
 
-		yield joints_sel_list.getDependNode(0)
+	global JOINTS_DISCOVERY_DATA
+
+	if JOINTS_DISCOVERY_DATA is None:
+		JOINTS_DISCOVERY_DATA = getconf.get_joints_discovery_data()
+
+	# Assume there is a types specification for finding geos in the scene
+	try:
+		joints_in_scene = cmds.ls(type=JOINTS_DISCOVERY_DATA.type, noIntermediate=True)
+	except AttributeError:
+		joints_in_scene = cmds.ls(noIntermediate=True)
+
+	joints_ref_sel_list = om.MSelectionList()
+
+	for joint_name in joints_in_scene:
+		try:
+			assert joint_name.endswith(JOINTS_DISCOVERY_DATA.suffix) is True
+		except AttributeError:
+			# There isn't a suffix specification for finding geos in the scene. Therefore, ignore this error and
+			# continue on
+			pass
+		except AssertionError:
+			continue
+
+		try:
+			assert JOINTS_DISCOVERY_DATA.expression.match(joint_name) is not None
+		except AttributeError:
+			# There isn't a suffix specification for finding geos in the scene. Therefore, ignore this error and
+			# continue on
+			pass
+		except AssertionError:
+			continue
+
+		joints_ref_sel_list.clear()
+		joints_ref_sel_list.add(joint_name)
+
+		yield joints_ref_sel_list.getDependNode(0)
 
 
 def get_joints_in_scene_list():
-	return [j for j in get_controls_in_scene_gen()]
+	return [j for j in get_joints_in_scene_gen()]
