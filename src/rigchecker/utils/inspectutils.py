@@ -78,15 +78,15 @@ def get_controls_in_scene_gen():
 			# Expressions is not a method of discovery. Therefore, ignore this error and continue on
 			pass
 		except AssertionError:
-			# The current node name didn't satisfy the regular expressions. Therefore, ignore it and continue with
-			# the next name
+			# The current node node_data didn't satisfy the regular expressions. Therefore, ignore it and continue with
+			# the next node_data
 			continue
 
 		# Assume controls_type is not None
 		try:
 			assert cmds.nodeType(node_name) == CONTROLS_DISCOVERY_DATA["type"]
 		except AssertionError:
-			# The node's type is not supported. Therefore, ignore it and continue with the next node name
+			# The node's type is not supported. Therefore, ignore it and continue with the next node node_data
 			continue
 		except(KeyError, ValueError):
 			# Type is not a method of discovery. Therefore, ignore this error and continue on
@@ -99,8 +99,8 @@ def get_controls_in_scene_gen():
 			# Suffixes is not a method of discovery. Therefore, ignore this error and continue on
 			pass
 		except AssertionError:
-			# The node name doesn't end with the suffix found in the configuration file. Therefore,
-			# ignore it and continue with the next name
+			# The node node_data doesn't end with the suffix found in the configuration file. Therefore,
+			# ignore it and continue with the next node_data
 			continue
 
 		nodes_sel_list.clear()
@@ -313,7 +313,7 @@ def control_has_offset_group(control_node):
 	try:
 		assert OFFSET_GROUPS_DISCOVERY_DATA["expression"].match(control_parent_dag_fn.name()) is not None
 	except AssertionError:
-		# The name of the parent node of the node received as argument doesn't match the regular expression
+		# The node_data of the parent node of the node received as argument doesn't match the regular expression
 		# found in the configuration file
 		return False
 	except(KeyError, RuntimeError):
@@ -323,7 +323,7 @@ def control_has_offset_group(control_node):
 	try:
 		assert control_parent_dag_fn.name().endswith(OFFSET_GROUPS_DISCOVERY_DATA["suffix"]) is True
 	except AssertionError:
-		# The name of the parent node of the node received as argument doesn't end with the suffix found in the
+		# The node_data of the parent node of the node received as argument doesn't end with the suffix found in the
 		# configuration file
 		return False
 	except(KeyError, RuntimeError):

@@ -13,6 +13,7 @@ DEF_CONF = None
 #
 # ##############################
 
+
 def get_conf_file_path():
 	conf_dir_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
@@ -76,22 +77,28 @@ def get_def_conf():
 
 
 # ##############################
-# Geometry
+# Find
 # ##############################
 
 
-def get_geo_suffix():
+def get_suffix(title):
 	try:
-		return get_conf()["geo"]["suffix"]
+		return get_conf()["find"][title]["suffix"]
 	except KeyError:
-		return get_def_conf()["geo"]["suffix"]
+		try:
+			return get_def_conf()["find"][title]["suffix"]
+		except KeyError:
+			return ""
 
 
-def get_geo_expression():
+def get_expression(title):
 	try:
-		geo_exp = re.compile(get_conf()["geo"]["exp"])
+		geo_exp = get_conf()["find"][title]["exp"]
 	except KeyError:
-		geo_exp = re.compile(get_def_conf()["geo"]["exp"])
+		try:
+			geo_exp = get_def_conf()["find"][title]["exp"]
+		except KeyError:
+			return None
 
 	try:
 		return re.compile(geo_exp)
@@ -99,29 +106,38 @@ def get_geo_expression():
 		return None
 
 
-def get_geo_types():
+def get_types(title):
 	try:
-		return get_conf()["geo"]["types"]
+		return get_conf()["find"][title]["types"]
 	except KeyError:
-		return get_def_conf()["geo"]["types"]
+		try:
+			return get_def_conf()["find"][title]["types"]
+		except KeyError:
+			return []
 
 
-def get_geo_discovery_methods():
+def get_discovery_methods(title):
 	try:
-		return get_conf()["geo"]["discovery_methods"]
+		return get_conf()["find"][title]["discovery_methods"]
 	except KeyError:
-		return get_def_conf()["geo"]["discovery_methods"]
+		try:
+			return get_def_conf()["find"][title]["discovery_methods"]
+		except KeyError:
+			return []
 
 
-def get_selected_geo_discovery_methods():
+def get_selected_discovery_methods(title):
 	try:
-		return get_conf()["geo"]["selected_discovery_methods"]
+		return get_conf()["find"][title]["selected_discovery_methods"]
 	except KeyError:
-		return get_def_conf()["geo"]["selected_discovery_methods"]
+		try:
+			return get_def_conf()["find"][title]["selected_discovery_methods"]
+		except KeyError:
+			return []
 
 
-def get_geo_discovery_data():
-	sel_discovery_methods = get_selected_geo_discovery_methods()
+def get_discovery_data(title):
+	sel_discovery_methods = get_selected_discovery_methods(title)
 
 	GeoDiscoveryData = namedtuple("GeoDiscoveryData", sel_discovery_methods)
 	discovery_data = []
@@ -137,232 +153,6 @@ def get_geo_discovery_data():
 			discovery_data.append(None)
 
 	return GeoDiscoveryData.__new__(GeoDiscoveryData, *discovery_data)
-
-
-# ##############################
-# Joints
-# ##############################
-
-
-def get_joints_suffix():
-	try:
-		return get_conf()["joints"]["suffix"]
-	except KeyError:
-		return get_def_conf()["joints"]["suffix"]
-
-
-def get_joints_expression():
-	try:
-		joints_exp = re.compile(get_conf()["joints"]["exp"])
-	except KeyError:
-		joints_exp = re.compile(get_def_conf()["joints"]["exp"])
-
-	try:
-		return re.compile(joints_exp)
-	except(ValueError, RuntimeError, Exception):
-		return None
-
-
-def get_joints_types():
-	try:
-		return get_conf()["joints"]["types"]
-	except KeyError:
-		return get_def_conf()["joints"]["types"]
-
-
-def get_joints_discovery_methods():
-	try:
-		return get_conf()["joints"]["discovery_methods"]
-	except KeyError:
-		return get_def_conf()["joints"]["discovery_methods"]
-
-
-def get_selected_joints_discovery_methods():
-	try:
-		return get_conf()["joints"]["selected_discovery_methods"]
-	except KeyError:
-		return get_def_conf()["joints"]["selected_discovery_methods"]
-
-
-def get_joints_discovery_data():
-	sel_discovery_methods = get_selected_joints_discovery_methods()
-
-	JointsDiscoveryData = namedtuple("JointsDiscoveryData", sel_discovery_methods)
-	discovery_data = []
-
-	for m in sel_discovery_methods:
-		if m == "suffix":
-			discovery_data.append(get_joints_suffix())
-		elif m == "expression":
-			discovery_data.append(get_joints_expression())
-		elif m == "type":
-			discovery_data.append(get_joints_types())
-		else:
-			discovery_data.append(None)
-
-	return JointsDiscoveryData.__new__(JointsDiscoveryData, *discovery_data)
-
-# ##############################
-# Controls
-# ##############################
-
-
-def get_controls_suffix():
-	try:
-		return get_conf()["controls"]["suffix"]
-	except KeyError:
-		return get_def_conf()["controls"]["suffix"]
-
-
-def get_controls_expression():
-	try:
-		controls_exp = re.compile(get_conf()["controls"]["exp"])
-	except KeyError:
-		controls_exp = re.compile(get_def_conf()["controls"]["exp"])
-
-	try:
-		return re.compile(controls_exp)
-	except(ValueError, RuntimeError, Exception):
-		return None
-
-
-def get_controls_types():
-	try:
-		return get_conf()["controls"]["types"]
-	except KeyError:
-		return get_def_conf()["controls"]["types"]
-
-
-def get_controls_discovery_methods():
-	try:
-		return get_conf()["controls"]["discovery_methods"]
-	except KeyError:
-		return get_def_conf()["controls"]["discovery_methods"]
-
-
-def get_selected_controls_discovery_methods():
-	try:
-		return get_conf()["controls"]["selected_discovery_methods"]
-	except KeyError:
-		return get_def_conf()["controls"]["selected_discovery_methods"]
-
-
-def get_controls_discovery_data():
-	sel_discovery_methods = get_selected_controls_discovery_methods()
-
-	ControlDiscoveryData = namedtuple("ControlDiscoveryData", sel_discovery_methods)
-	discovery_data = []
-
-	for m in sel_discovery_methods:
-		if m == "suffix":
-			discovery_data.append(get_controls_suffix())
-		elif m == "expression":
-			discovery_data.append(get_controls_expression())
-		elif m == "type":
-			discovery_data.append(get_controls_types())
-		else:
-			discovery_data.append(None)
-
-	return ControlDiscoveryData.__new__(ControlDiscoveryData, *discovery_data)
-
-
-# ##############################
-# Offset Groups
-# ##############################
-
-
-def get_offset_groups_suffix():
-	try:
-		return get_conf()["controls"]["off_grp_suffix"]
-	except KeyError:
-		return get_def_conf()["controls"]["off_grp_suffix"]
-
-
-def get_geo_group_suffix():
-	try:
-		return get_conf()["geo_group_suffix"]
-	except KeyError:
-		return get_def_conf()["geo_group_suffix"]
-
-
-def get_rig_group_suffix():
-	try:
-		return get_conf()["rig_group_suffix"]
-	except KeyError:
-		return get_def_conf()["rig_group_suffix"]
-
-
-'''def get_controls_types():
-	try:
-		return get_conf()["controls_types"]
-	except KeyError:
-		return get_def_conf()["controls_types"]'''
-
-
-def get_offset_groups_expression():
-	try:
-		return re.compile(get_conf()["offset_groups_exp"])
-	except KeyError:
-		return re.compile(get_def_conf()["offset_groups_exp"])
-
-
-def get_geo_group_expression():
-	try:
-		return re.compile(get_conf()["geo_group_exp"])
-	except KeyError:
-		return re.compile(get_def_conf()["geo_group_exp"])
-
-
-def get_offset_groups_discovery_methods():
-	try:
-		return get_conf()["offset_groups_discovery_methods"]
-	except KeyError:
-		return get_def_conf()["offset_groups_discovery_methods"]
-
-
-def get_selected_offset_groups_discovery_methods():
-	try:
-		return get_conf()["selected_offset_groups_discovery_methods"]
-	except KeyError:
-		return get_def_conf()["selected_offset_groups_discovery_methods"]
-
-
-def get_geo_group_discovery_methods():
-	try:
-		return get_conf()["geo_group_discovery_methods"]
-	except KeyError:
-		return get_def_conf()["geo_group_discovery_methods"]
-
-
-def get_selected_geo_group_discovery_methods():
-	try:
-		return get_conf()["selected_geo_group_discovery_methods"]
-	except KeyError:
-		return get_def_conf()["selected_geo_group_discovery_methods"]
-
-
-def get_offset_groups_discovery_data():
-	discovery_data = dict.fromkeys(get_selected_offset_groups_discovery_methods())
-
-	for k in discovery_data:
-		if k == "suffix":
-			discovery_data[k] = get_offset_groups_suffix()
-		elif k == "expression":
-			discovery_data[k] = get_offset_groups_expression()
-
-	return discovery_data
-
-
-def get_geo_group_discovery_data():
-	discovery_data = dict.fromkeys(get_selected_geo_group_discovery_methods())
-
-	for k in discovery_data:
-		if k == "suffix":
-			discovery_data[k] = get_geo_group_suffix()
-		elif k == "expression":
-			discovery_data[k] = get_geo_group_expression()
-
-	return discovery_data
 
 
 # ##############################
@@ -434,3 +224,14 @@ def reload_def_conf():
 	DEF_CONF = None
 
 	return get_def_conf()
+
+
+# ##############################
+#
+# Modify Configuration
+#
+# ##############################
+
+
+def get_icons_dir_path():
+	return os.path.join(__file__, os.path.sep.join(["resource", "icons"]))

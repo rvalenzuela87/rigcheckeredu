@@ -1,44 +1,48 @@
 {
   "name": "Default",
-  "geo":{
-    "suffix": "geo",
-    "exp": ".*_geo_(\\d\\d)$",
-    "types": ["mesh"],
-    "locations": [],
-    "discovery_methods": ["expression", "suffix", "type", "location"],
-    "selected_discovery_methods": ["type"]
+  "find": {
+    "geo":{
+      "suffix": "geo",
+      "exp": ".*_geo_(\\d\\d)$",
+      "types": ["mesh"],
+      "locations": [],
+      "discovery_methods": ["expression", "suffix", "type", "location"],
+      "selected_discovery_methods": ["type"]
+    },
+    "joints":{
+      "suffix": "",
+      "exp": "",
+      "types": ["joint"],
+      "locations": [],
+      "discovery_methods": ["expression", "suffix", "type", "location"],
+      "selected_discovery_methods": ["type"]
+    },
+    "controls": {
+      "suffix": "Controler",
+      "exp": "",
+      "types": ["nurbsCurve"],
+      "locations": [],
+      "discovery_methods": ["expression", "suffix", "type", "location"],
+      "selected_discovery_methods": ["suffix"]
+    },
+    "geo_grp": {
+      "suffix": "geo_grp",
+      "exp": "(.)*_geo_grp$",
+      "types": ["transform"],
+      "locations": [],
+      "discovery_methods": ["expression", "suffix"],
+      "selected_discovery_methods": ["suffix"]
+    },
+    "rig_grp": {
+      "suffix": "rig_grp",
+      "exp": "(.)*_rig_grp$",
+      "types": ["transform"],
+      "locations": [],
+      "discovery_methods": ["expression", "suffix"],
+      "selected_discovery_methods": ["suffix"]
+    }
   },
-  "joints":{
-    "suffix": "",
-    "exp": "",
-    "types": ["joint"],
-    "locations": [],
-    "discovery_methods": ["expression", "suffix", "type", "location"],
-    "selected_discovery_methods": ["type"]
-  },
-  "controls": {
-    "suffix": "Controler",
-    "exp": "",
-    "types": ["nurbsCurve"],
-    "locations": [],
-    "discovery_methods": ["expression", "suffix", "type", "location"],
-    "selected_discovery_methods": ["suffix"],
-    "off_grp_suffix": "off_grp",
-    "off_grp_exp": "(.)*_off_grp$"
-  },
-  "geo_grp": {
-    "suffix": "geo_grp",
-    "exp": "(.)*_geo_grp$",
-    "discovery_methods": ["expression", "suffix"],
-    "selected_discovery_methods": ["suffix"]
-  },
-  "rig_grp": {
-    "suffix": "rig_grp",
-    "exp": "(.)*_rig_grp$",
-    "discovery_methods": ["expression", "suffix"],
-    "selected_discovery_methods": ["suffix"]
-  },
-  "forbidden_types": [],
+  "forbidden": [],
   "validations":  {
     "geo": [
       {

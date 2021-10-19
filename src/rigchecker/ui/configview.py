@@ -94,7 +94,7 @@ class NewTypeDialog(QDialog):
 		buttons_layout.addWidget(self.__add_button)
 		buttons_layout.addWidget(self.__cancel_button)
 
-		new_type_form_layout.addRow("Type name:", self.__type_name_line_edit)
+		new_type_form_layout.addRow("Type node_data:", self.__type_name_line_edit)
 
 		self.layout().addLayout(new_type_form_layout)
 		self.layout().addLayout(buttons_layout)

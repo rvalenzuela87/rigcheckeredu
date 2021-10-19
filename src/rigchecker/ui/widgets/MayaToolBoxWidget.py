@@ -1,50 +1,51 @@
 import os
-from PySide2 import QtWidgets, QtCore, QtGui
-from Rigging_Tool_App.UI.Widgets import WidgetsFactory
-from Rigging_Tool_App.System import UIConstants
+
+from PySide2.QtWidgets import QWidget, QLabel, QGroupBox, QScrollArea, QSizePolicy, QHBoxLayout, QVBoxLayout, QBoxLayout, QLayout
+from PySide2.QtCore import Signal, Slot, Qt, QSize
+from PySide2.QtGui import QPalette, QPixmap
 
 
-class ButtonLabelWidget(QtWidgets.QWidget):
+class ButtonLabelWidget(QWidget):
 	__expanded = False
 
 	box_title = ""
-	expanded = QtCore.Signal()
-	contracted = QtCore.Signal()
+	expanded = Signal()
+	contracted = Signal()
 	expand_icon = None
 
 	def __init__(self, title="", parent=None):
 		super(ButtonLabelWidget, self).__init__(parent)
 
 		self.setSizePolicy(
-			QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Maximum)
+			QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
 		)
 		self.setAutoFillBackground(True)
-		self.setCursor(QtCore.Qt.PointingHandCursor)
+		self.setCursor(Qt.PointingHandCursor)
 
 		box_palette = self.palette()
 		box_palette_copy = self.palette()
 
-		for group in [QtGui.QPalette.Active, QtGui.QPalette.Inactive, QtGui.QPalette.Disabled]:
+		for group in [QPalette.Active, QPalette.Inactive, QPalette.Disabled]:
 			box_palette_copy.setBrush(
-				group, QtGui.QPalette.Base, box_palette.brush(group, QtGui.QPalette.Button)
+				group, QPalette.Base, box_palette.brush(group, QPalette.Button)
 			)
 			box_palette_copy.setBrush(
-				group, QtGui.QPalette.Window, box_palette.brush(group, QtGui.QPalette.Button)
+				group, QPalette.Window, box_palette.brush(group, QPalette.Button)
 			)
 			box_palette_copy.setBrush(
-				group, QtGui.QPalette.WindowText, box_palette.brush(group, QtGui.QPalette.ButtonText)
+				group, QPalette.WindowText, box_palette.brush(group, QPalette.ButtonText)
 			)
 
 		self.setPalette(box_palette_copy)
 
-		self.expand_icon = QtWidgets.QLabel(self)
+		self.expand_icon = QLabel(self)
 		self.expand_icon.setPixmap(
-			QtGui.QPixmap(os.path.join(UIConstants.ICONS_DIRECTORY, "toolbox-arrow-right-s-fill.png"))
+			QPixmap(os.path.join(os.environ["ICONS_DIR"], "toolbox-arrow-right-s-fill.png"))
 		)
 
-		self.box_title = QtWidgets.QLabel(title, self)
+		self.box_title = QLabel(title, self)
 
-		self.setLayout(WidgetsFactory.h_box_layout(self))
+		self.setLayout(QHBoxLayout(self))
 
 		contents_margins = self.layout().contentsMargins()
 		contents_margins.setTop(5)
@@ -53,53 +54,72 @@ class ButtonLabelWidget(QtWidgets.QWidget):
 
 		self.layout().addWidget(self.expand_icon)
 		self.layout().addWidget(self.box_title)
-		self.layout().setAlignment(QtCore.Qt.AlignLeft)
+		self.layout().setAlignment(Qt.AlignLeft)
 
-	@QtCore.Slot()
+	@Slot()
 	def toggleExpand(self):
 		if self.__expanded is False:
 			self.__expanded = True
 			self.expand_icon.setPixmap(
-				QtGui.QPixmap(os.path.join(UIConstants.ICONS_DIRECTORY, "toolbox-arrow-down-s-fill.png"))
+				QPixmap(os.path.join(os.environ["ICONS_DIR"], "toolbox-arrow-down-s-fill.png"))
 			)
 			self.expanded.emit()
 		else:
 			self.__expanded = False
 			self.expand_icon.setPixmap(
-				QtGui.QPixmap(os.path.join(UIConstants.ICONS_DIRECTORY, "toolbox-arrow-right-s-fill.png"))
+				QPixmap(os.path.join(os.environ["ICONS_DIR"], "toolbox-arrow-right-s-fill.png"))
 			)
 			self.contracted.emit()
 
 	def mouseReleaseEvent(self, event):
-		if event.button() == QtCore.Qt.LeftButton:
+		if event.button() == Qt.LeftButton:
 			self.toggleExpand()
 
 		super(ButtonLabelWidget, self).mouseReleaseEvent(event)
 
 
-class MayaToolBoxItemWidget(QtWidgets.QWidget):
+class MayaToolBoxItemWidget(QWidget):
 	__is_expanded = False
 
 	box_title = None
 	box_frame = None
 	box_frame_animation = None
 
-	expand_changed = QtCore.Signal()
+	expand_changed = Signal()
 
 	def __init__(self, title="", parent=None, contents_margins=None, spacing=5):
 		super(MayaToolBoxItemWidget, self).__init__(parent)
 
-		self.setLayout(WidgetsFactory.v_box_layout(self, contents_margins=[0, 0], spacing=0))
-		self.layout().setAlignment(QtCore.Qt.AlignTop)
+		self.setLayout(QVBoxLayout(self))
+		self.layout().setContentsMargins(0, 0, 0, 0)
+		self.layout().setSpacing(0)
+		self.layout().setAlignment(Qt.AlignTop)
 
 		self.box_title = ButtonLabelWidget(title=title, parent=self)
 		self.box_title.expanded.connect(self.expand)
 		self.box_title.contracted.connect(self.contract)
 
-		self.box_frame = WidgetsFactory.v_group_box(self, contents_margins=contents_margins, spacing=spacing)
+		self.box_frame = QGroupBox(self)
+		self.box_frame.setLayout(QVBoxLayout(self.box_frame))
+
+		try:
+			self.box_frame.layout().setContentsMargins(
+				contents_margins[0], contents_margins[1], contents_margins[2], contents_margins[3]
+			)
+		except IndexError:
+			try:
+				self.box_frame.layout().setContentsMargins(
+					contents_margins[0], contents_margins[1], contents_margins[0], contents_margins[1]
+				)
+			except IndexError:
+				pass
+		except TypeError:
+			pass
+
+		self.box_frame.layout().setSpacing(spacing)
 		self.box_frame.setVisible(False)
 		self.box_frame.setSizePolicy(
-			QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Preferred)
+			QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Preferred)
 		)
 
 		for w in [self.box_title, self.box_frame]:
@@ -107,20 +127,20 @@ class MayaToolBoxItemWidget(QtWidgets.QWidget):
 
 		self.__is_expanded = False
 
-	@QtCore.Slot(bool)
+	@Slot(bool)
 	def expand(self):
 		self.__is_expanded = True
 		self.setSizePolicy(
-			QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.MinimumExpanding)
+			QSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
 		)
 		self.box_frame.setVisible(True)
 
-	@QtCore.Slot()
+	@Slot()
 	def contract(self):
 		self.__is_expanded = False
 		self.box_frame.setVisible(False)
 		self.setSizePolicy(
-			QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Maximum)
+			QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
 		)
 
 	def expanded(self):
@@ -136,7 +156,7 @@ class MayaToolBoxItemWidget(QtWidgets.QWidget):
 		content_widget = self.content_widget()
 
 		for ch in content_widget.children():
-			if issubclass(type(ch), QtWidgets.QLayout):
+			if issubclass(type(ch), QLayout):
 				continue
 			else:
 				return ch
@@ -147,7 +167,7 @@ class MayaToolBoxItemWidget(QtWidgets.QWidget):
 		content_widget = self.content_widget()
 
 		for ch in content_widget.children():
-			if issubclass(type(ch), QtWidgets.QBoxLayout):
+			if issubclass(type(ch), QBoxLayout):
 				continue
 			else:
 				content_widget.layout().removeWidget(ch)
@@ -160,7 +180,7 @@ class MayaToolBoxItemWidget(QtWidgets.QWidget):
 		return self
 
 
-class MayaToolBoxWidget(QtWidgets.QWidget):
+class MayaToolBoxWidget(QWidget):
 	contents_margins = None
 	spacing = 5
 
@@ -175,30 +195,34 @@ class MayaToolBoxWidget(QtWidgets.QWidget):
 		self.contents_margins = contents_margins
 		self.spacing = spacing
 
-		self.setLayout(WidgetsFactory.v_box_layout(self, contents_margins=[0, 0], spacing=0))
-		self.layout().setAlignment(QtCore.Qt.AlignTop)
+		self.setLayout(QVBoxLayout(self))
+		self.layout().setContentsMargins(0, 0, 0, 0)
+		self.layout().setSpacing(0)
+		self.layout().setAlignment(Qt.AlignTop)
 		self.setSizePolicy(
-			QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+			QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 		)
 
-		self.scroll_area = QtWidgets.QScrollArea(self)
-		self.scroll_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-		self.scroll_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+		self.scroll_area = QScrollArea(self)
+		self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+		self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 		self.scroll_area.setWidgetResizable(True)
 		self.scroll_area.setSizePolicy(
-			QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+			QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 		)
 
-		self.container = WidgetsFactory.v_widget(self.scroll_area, contents_margins=[0, 0])
-		self.container.layout().setAlignment(QtCore.Qt.AlignTop)
+		self.container = QWidget(self.scroll_area)
+		self.container.setLayout(QVBoxLayout(self.container))
+		self.container.layout().setContentsMargins(0, 0, 0, 0)
+		self.container.layout().setAlignment(Qt.AlignTop)
 		self.container.setSizePolicy(
-			QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+			QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 		)
 
 		self.scroll_area.setWidget(self.container)
 		self.layout().addWidget(self.scroll_area)
 
-	@QtCore.Slot()
+	@Slot()
 	def updateSize_bck(self):
 		available_height = self.size().height() - (self.spacing * (len(self.__items) - 1))
 		expanded_items = []
@@ -218,40 +242,35 @@ class MayaToolBoxWidget(QtWidgets.QWidget):
 		'''else:
 			for item in expanded_items:
 				item_size = item.size()
-				item.resize(QtCore.QSize(item_size.width(), (items_height + item.title_widget().size().height())))
+				item.resize(QSize(item_size.width(), (items_height + item.title_widget().size().height())))
 
 		for item in flatten_items:
 			item.resize(item.title_widget().size())'''
 
 		return self
 
-	@QtCore.Slot()
+	@Slot()
 	def updateSize(self):
-		# print("Spacing: {}".format(self.container.layout().spacing()))
-		# print("Current height: {}".format(self.container.size().height()))
 		available_height = self.container.size().height() - (self.container.layout().spacing() * (len(self.__items) - 1))
 		expanded_items = []
 		flatten_items = []
 
 		for item in self.__items:
-			# print("-- Item height: {}".format(item.title_widget().size().height()))
 			available_height -= item.title_widget().size().height()
 
 			if item.expanded() is True:
 				expanded_items.append(item)
 			else:
 				flatten_items.append(item)
-		# print("Available_height: {}".format(available_height))
 
 		try:
 			items_height = available_height / len(expanded_items)
-			# print("Items height: {}".format(items_height))
 		except ZeroDivisionError:
 			pass
 		else:
 			for item in expanded_items:
 				item_size = item.size()
-				item.resize(QtCore.QSize(item_size.width(), (items_height + item.title_widget().size().height())))
+				item.resize(QSize(item_size.width(), (items_height + item.title_widget().size().height())))
 
 		for item in flatten_items:
 			item.resize(item.title_widget().size())
@@ -271,9 +290,6 @@ class MayaToolBoxWidget(QtWidgets.QWidget):
 		self.__items.append(new_item)
 
 		self.container.layout().addWidget(new_item)
-		'''self.container.resize(self.container.layout().sizeHint())
-		self.resize(self.layout().sizeHint())'''
-
 		return self
 
 	def removeItem(self, item):
