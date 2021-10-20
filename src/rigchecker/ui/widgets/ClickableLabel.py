@@ -22,6 +22,15 @@ class ClickableLabel(QtWidgets.QLabel):
 	def doubleClick(self):
 		self.double_clicked.emit()
 
+	def isUnderline(self):
+		return self.font().isUnderline()
+
+	def setUnderline(self, underline):
+		font = self.font()
+		font.setUnderline(underline)
+
+		self.setFont(font)
+
 	def mouseReleaseEvent(self, event):
 		if event.button() == QtCore.Qt.LeftButton:
 			self.clicked.emit()
@@ -30,3 +39,5 @@ class ClickableLabel(QtWidgets.QLabel):
 
 	def mouseDoubleClickEvent(self, event):
 		super(ClickableLabel, self).mouseDoubleClickEvent(event)
+
+	underline = QtCore.Property(bool, isUnderline, setUnderline)

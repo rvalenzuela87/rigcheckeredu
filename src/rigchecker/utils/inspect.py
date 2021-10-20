@@ -36,7 +36,7 @@ def get_node_reference_decorator(function):
 
 def get_geos_in_scene_gen():
 	"""
-	Returns a generator for all the shape nodes in the scene which match the filters specified via the configuration
+	Returns a generator for all the shape nodesList in the scene which match the filters specified via the configuration
 	file.
 
 	@return: (MObject,...)
@@ -83,7 +83,7 @@ def get_geos_in_scene_gen():
 
 def get_geos_in_scene_list():
 	"""
-	Returns a list with references to all the shape nodes in the scene.
+	Returns a list with references to all the shape nodesList in the scene.
 
 	@return: [MObject,...]
 	@rtype: list
@@ -149,7 +149,7 @@ def get_controls_in_scene_list():
 
 def get_joints_in_scene_gen():
 	"""
-	Returns a generator for all the joints nodes in the scene which match the filters specified via the configuration
+	Returns a generator for all the joints nodesList in the scene which match the filters specified via the configuration
 	file.
 
 	@return: (MObject,...)

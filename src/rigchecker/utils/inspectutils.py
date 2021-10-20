@@ -34,7 +34,7 @@ def get_node_reference_decorator(function):
 
 def get_geos_in_scene_gen():
 	"""
-	Returns a generator for all the shape nodes in the scene.
+	Returns a generator for all the shape nodesList in the scene.
 
 	@return: (MObject,...)
 	@rtype: generator
@@ -49,7 +49,7 @@ def get_geos_in_scene_gen():
 
 def get_geos_in_scene_list():
 	"""
-	Returns a list with references to all the shape nodes in the scene.
+	Returns a list with references to all the shape nodesList in the scene.
 
 	@return: [MObject,...]
 	@rtype: list
@@ -276,7 +276,7 @@ def control_is_valid_type(control_node):
 	try:
 		assert control_node.hasFn(om.MFn.kShape) is True
 	except AssertionError:
-		# The node received as argument is not a shape node. Therefore, retrieve all of its shape nodes and check
+		# The node received as argument is not a shape node. Therefore, retrieve all of its shape nodesList and check
 		# if their type matches the accepted type for animation controls found in the configuration file
 
 		for i in xrange(control_dag_fn.getPath().numberOfShapesDirectlyBelow()):
