@@ -1,62 +1,53 @@
 import os
-from PySide2 import QtWidgets, QtCore, QtGui
-from Rigging_Tool_App.System import UIConstants
-from Rigging_Tool_App.UI.Widgets import ClickableLabel, EscapableLineEdit
+
+from PySide2.QtWidgets import QWidget, QHBoxLayout
+from PySide2.QtCore import Signal, Slot, Property
+from PySide2.QtGui import QPixmap
+
+from . import ClickableLabel, EscapableLineEdit
 
 
-class EditableLabel(QtWidgets.QWidget):
+class EditableLabel(QWidget):
     label = None
     label_edit = None
     accept_button = None
     cancel_button = None
 
-    change_attempt = QtCore.Signal([None], [str, str])
-    change_discarded = QtCore.Signal([None], [str])
-    changed = QtCore.Signal([None], [str, str])
+    changeAttempt = Signal([None], [str, str])
+    changeDiscarded = Signal([None], [str])
+    changed = Signal([None], [str, str])
 
-    def __init__(self, *args, **kwargs):
-        try:
-            parent = args[1]
-        except IndexError:
-            # Assume parent is the first argument
-            try:
-                parent = args[0]
-            except IndexError:
-                parent = None
+    def __init__(self, text, *args, **kwargs):
+        super(EditableLabel, self).__init__(*args, **kwargs)
 
-        try:
-            assert type(parent) is QtWidgets.QWidget or issubclass(type(parent), QtWidgets.QWidget)
-        except AssertionError:
-            parent = None
-
-        super(EditableLabel, self).__init__(parent)
-
-        main_layout = QtWidgets.QHBoxLayout(self)
+        main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(0.0, 0.0, 0.0, 0.0)
 
         self.setLayout(main_layout)
 
-        accept_target_alias_edit_pixmap = QtGui.QPixmap(
-            os.path.join(UIConstants.ICONS_DIRECTORY, "checkbox-circle-fill.png")
+        accept_target_alias_edit_pixmap = QPixmap(
+            os.path.join(os.environ["ICONS_DIR"], "checkbox-circle-fill.png")
         )
-        cancel_target_alias_edit_pixmap = QtGui.QPixmap(
-            os.path.join(UIConstants.ICONS_DIRECTORY, "close-line.png")
+        cancel_target_alias_edit_pixmap = QPixmap(
+            os.path.join(os.environ["ICONS_DIR"], "close-line.png")
         )
 
         self.label = ClickableLabel.ClickableLabel(self)
         self.label_edit = EscapableLineEdit.EscapableLineEdit(self)
+
         self.accept_button = ClickableLabel.ClickableLabel(self)
         self.accept_button.setPixmap(accept_target_alias_edit_pixmap)
+
         self.cancel_button = ClickableLabel.ClickableLabel(self)
         self.cancel_button.setPixmap(cancel_target_alias_edit_pixmap)
 
         try:
-            self.label.setText(args[0])
-            self.label_edit.setText(args[0])
+            self.label.setText(text)
+            self.label_edit.setText(text)
         except(IndexError, AttributeError, RuntimeError, Exception):
             pass
 
-        self.label_edit.escape_on_focus_out = False
+        self.label_edit.escapeOnFocusOut = False
 
         self.label.clicked.connect(self.turnOnEditMode)
         self.cancel_button.clicked.connect(self.turnOffEditMode)
@@ -74,7 +65,7 @@ class EditableLabel(QtWidgets.QWidget):
         self.layout().addWidget(self.accept_button)
         self.layout().addWidget(self.cancel_button)
 
-    @QtCore.Slot()
+    @Slot()
     def turnOnEditMode(self):
         self.label.setVisible(False)
         self.label.setEnabled(False)
@@ -90,7 +81,7 @@ class EditableLabel(QtWidgets.QWidget):
         self.label_edit.setFocus()
         self.label_edit.selectAll()
 
-    @QtCore.Slot()
+    @Slot()
     def turnOffEditMode(self):
         self.label_edit.setEnabled(False)
         self.accept_button.setEnabled(False)
@@ -105,14 +96,14 @@ class EditableLabel(QtWidgets.QWidget):
 
         self.label_edit.deselect()
 
-    @QtCore.Slot()
+    @Slot()
     def emitChangeAttempt(self):
         try:
             assert len(self.label_edit.text()) > 0
         except AssertionError:
             # Field is empty
-            self.change_discarded[str].emit("Field is empty")
-            self.change_discarded[None].emit()
+            self.changeDiscarded[str].emit("Field is empty")
+            self.changeDiscarded[None].emit()
         else:
             try:
                 assert float(self.label_edit.text()) <= 1.0 and float(self.label_edit.text() >= 0.0)
@@ -120,10 +111,10 @@ class EditableLabel(QtWidgets.QWidget):
                 # Value is not valid
                 pass
             else:
-                self.change_attempt[str, str].emit(self.label.text(), self.label_edit.text())
-                self.change_attempt[None].emit()
+                self.changeAttempt[str, str].emit(self.label.text(), self.label_edit.text())
+                self.changeAttempt[None].emit()
 
-    @QtCore.Slot()
+    @Slot()
     def acceptChanges(self):
         previous_value = self.label.text()
         self.label.setText(self.label_edit.text())
@@ -132,7 +123,7 @@ class EditableLabel(QtWidgets.QWidget):
         self.changed[str, str].emit(previous_value, self.label.text())
         self.changed[None].emit()
 
-    def text(self):
+    def getText(self):
         return self.label.text()
 
     def setText(self, text):
@@ -147,3 +138,5 @@ class EditableLabel(QtWidgets.QWidget):
 
     def setMinLength(self, min):
         self.label_edit.setMinLength(min)
+
+    text = Property(str, getText, setText)

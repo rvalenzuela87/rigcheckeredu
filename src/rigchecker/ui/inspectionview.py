@@ -1,7 +1,7 @@
 import random
 from collections import namedtuple
 
-from PySide2.QtWidgets import QWidget, QScrollArea, QPushButton, QLabel, QGroupBox, QTreeWidget, QTreeWidgetItem, QSplitter, QMessageBox, QVBoxLayout, QHBoxLayout, QGridLayout, QFormLayout, QSizePolicy
+from PySide2.QtWidgets import QWidget, QScrollArea, QPushButton, QLabel, QGroupBox, QTreeWidget, QTreeWidgetItem, QSplitter, QMessageBox, QComboBox, QVBoxLayout, QHBoxLayout, QGridLayout, QFormLayout, QSizePolicy
 from PySide2.QtCore import Qt, Property, Slot, Signal, QObject
 
 from .widgets import ResizeScrollAreaWidgetEventFilter, MayaToolBoxWidget, MayaGroupBox, BlockLabel, ClickableLabel
@@ -188,6 +188,16 @@ class NodesFoundWidget(MayaGroupBox.MayaGroupBox):
 	nodesList = Property(list, getNodesList, setNodesList)
 	nodesNames = Property(list, getNodesNames, None)
 	nodesPaths = Property(list, getNodesPaths, None)
+
+
+class NewSpecFormWidget(QWidget):
+	def __init__(self, *args, **kwargs):
+		super(NewSpecFormWidget, self).__init__(*args, **kwargs)
+
+		self.setLayout(QHBoxLayout(self))
+		self.layout().setContentsMargins(0, 0, 0, 0)
+
+		self.__spec_combo_box = QComboBox(self)
 
 
 class FindSpecsWidget(QWidget):
