@@ -1,4 +1,4 @@
-from PySide2.QtWidgets import QWidget, QLabel, QGridLayout, QSizePolicy
+from PySide2.QtWidgets import QWidget, QLabel, QGridLayout, QHBoxLayout, QSizePolicy
 from PySide2.QtGui import QPalette, QColor, QBrush
 from PySide2.QtCore import Qt, Signal, Slot, Property
 

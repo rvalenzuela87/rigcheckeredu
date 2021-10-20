@@ -1,18 +1,22 @@
+import random
 from collections import namedtuple
 
 from PySide2.QtWidgets import QWidget, QScrollArea, QPushButton, QLabel, QGroupBox, QTreeWidget, QTreeWidgetItem, QSplitter, QMessageBox, QVBoxLayout, QHBoxLayout, QGridLayout, QFormLayout, QSizePolicy
 from PySide2.QtCore import Qt, Property, Slot, Signal, QObject
 
-from .widgets import ResizeScrollAreaWidgetEventFilter, MayaToolBoxWidget, BlockLabel
-reload(BlockLabel)
+from .widgets import ResizeScrollAreaWidgetEventFilter, MayaToolBoxWidget, MayaGroupBox, BlockLabel
+reload(MayaGroupBox)
 
 
 NodeData = namedtuple("NodeData", ["name", "path"])
 
 
 class InspectionController(QObject):
-	specsFound = Signal([dict], [None])
+	specsFound = Signal([str, dict], [None])
 	specsNotFound = Signal([str], [None])
+
+	matchingNodesFound = Signal(list)
+	noMatchingNodesFound = Signal([str], [None])
 
 	def __init__(self, *args, **kwargs):
 		super(InspectionController, self).__init__(*args, **kwargs)
@@ -46,10 +50,16 @@ class InspectionController(QObject):
 				"type": [""]
 			}
 
-		self.specsFound[dict].emit(dummy)
+		self.specsFound[str, dict].emit(specs_name, dummy)
 		self.specsFound[None].emit()
 
 		return dummy
+
+	@Slot(dict)
+	def getMatchingNodes(self, specs):
+		nodes = [NodeData("nodeName_%i" % i, "node%iPath" % i) for i in xrange(random.randint(0, 15))]
+		self.matchingNodesFound.emit(nodes)
+		return nodes
 
 
 class NodeEntryWidget(QWidget):
@@ -98,15 +108,15 @@ class NodeEntryWidget(QWidget):
 	nodeName = Property(str, getNodeName, None)
 
 
-class NodesFoundWidget(QWidget):
+class NodesFoundWidget(MayaGroupBox.MayaGroupBox):
 	__load_button = None
 	__list_scroll_area = None
 
 	def __init__(self, *args, **kwargs):
 		super(NodesFoundWidget, self).__init__(*args, **kwargs)
 
-		self.setLayout(QVBoxLayout(self))
-		self.layout().setContentsMargins(0, 0, 0, 0)
+		self.setContentLayout(QVBoxLayout(self))
+		self.contentLayout().setContentsMargins(0, 0, 0, 0)
 
 		central_widget = QWidget(self)
 		central_widget.setLayout(QVBoxLayout(self))
@@ -123,8 +133,8 @@ class NodesFoundWidget(QWidget):
 
 		self.__load_button = QPushButton("Load", self)
 
-		self.layout().addWidget(self.__list_scroll_area)
-		self.layout().addWidget(self.__load_button)
+		self.contentLayout().addWidget(self.__list_scroll_area)
+		self.contentLayout().addWidget(self.__load_button)
 
 	def getNodes(self):
 		for nw in self.__list_scroll_area.widget().findChildren(NodeEntryWidget):
@@ -162,23 +172,41 @@ class NodesFoundWidget(QWidget):
 
 
 class FindSpecsWidget(QWidget):
+	__specs_id = None
+	__specs = None
+
+	__controller = None
+
+	__results_box = None
 	__nodes_found_widget = None
 	__total_nodes_found_label = None
 
-	def __init__(self, specs, *args, **kwargs):
+	# Signals
+	searchNodes = Signal([dict], [None])
+
+	def __init__(self, specs_id, specs, *args, **kwargs):
 		super(FindSpecsWidget, self).__init__(*args, **kwargs)
 
 		self.setLayout(QVBoxLayout(self))
+		self.layout().setAlignment(Qt.AlignTop)
 
-		specs_box = QGroupBox("Finding Specs", self)
-		specs_box.setLayout(QVBoxLayout(specs_box))
+		specs_box = MayaGroupBox.MayaGroupBox("Finding Specs", self)
+		specs_box.setContentLayout(QVBoxLayout(specs_box))
 
-		results_box = MayaToolBoxWidget.MayaToolBoxWidget(self)
+		self.__results_box = MayaGroupBox.MayaGroupBox("Results", self)
+		self.__results_box.setContentLayout(QVBoxLayout(self.__results_box))
+		self.__results_box.setFlat(True)
+		self.__results_box.setEnabled(False)
+
 		search_nodes_button = QPushButton("Search", self)
+		search_nodes_button.clicked.connect(self.emitSearchNodes)
+
 		select_all_nodes_found_button = QPushButton("Sel", self)
 		isolate_all_nodes_found_button = QPushButton("Iso", self)
 		self.__total_nodes_found_label = QLabel("0", self)
-		self.__nodes_found_widget = NodesFoundWidget(self)
+
+		self.__nodes_found_widget = NodesFoundWidget("Matching Nodes", self)
+		self.__nodes_found_widget.setFlat(True)
 
 		# Build specifications box
 		specs_list_widget = QWidget(specs_box)
@@ -218,29 +246,58 @@ class FindSpecsWidget(QWidget):
 			else:
 				specs_list_widget.layout().addRow("%s:" % k.capitalize(), QLabel(specs[k], specs_list_widget))
 
-		specs_box.layout().addWidget(specs_list_widget)
+		specs_box.contentLayout().addWidget(specs_list_widget)
 
 		# Build results box
-		results_widget = QWidget(results_box)
-		results_widget.setLayout(QVBoxLayout(results_widget))
-
-		found_nodes_layout = QHBoxLayout(results_widget)
+		found_nodes_layout = QHBoxLayout(self.__results_box)
 		found_nodes_layout.setContentsMargins(0, 0, 0, 0)
 		found_nodes_layout.setAlignment(Qt.AlignLeft)
 
-		found_nodes_layout.addWidget(QLabel("Found:", results_widget))
+		found_nodes_layout.addWidget(QLabel("Found:", self.__results_box))
 		found_nodes_layout.addWidget(self.__total_nodes_found_label)
 		found_nodes_layout.addWidget(select_all_nodes_found_button)
 		found_nodes_layout.addWidget(isolate_all_nodes_found_button)
 
-		results_widget.layout().addLayout(found_nodes_layout)
-		results_widget.layout().addWidget(self.__nodes_found_widget)
-
-		results_box.addItem(results_widget, None, "Results")
+		self.__results_box.contentLayout().addLayout(found_nodes_layout)
+		self.__results_box.contentLayout().addWidget(self.__nodes_found_widget)
 
 		self.layout().addWidget(specs_box)
 		self.layout().addWidget(search_nodes_button)
-		self.layout().addWidget(results_box)
+		self.layout().addWidget(self.__results_box)
+
+		self.__specs_id = specs_id
+		self.__specs = specs
+
+		self.__controller = InspectionController(self)
+
+		self.searchNodes[dict].connect(self.__controller.getMatchingNodes)
+		self.__controller.matchingNodesFound.connect(self.setNodesList)
+
+	def getSpecsId(self):
+		return self.__specs_id
+
+	def getSpecs(self):
+		return self.__specs
+
+	def getNodesList(self):
+		return self.__nodes_found_widget.nodesList
+
+	@Slot()
+	def setNodesList(self, nodesList):
+		self.__total_nodes_found_label.setText(str(len(nodesList)))
+		self.__nodes_found_widget.nodesList = nodesList
+
+		if len(nodesList) > 0:
+			pass
+
+	@Slot()
+	def emitSearchNodes(self):
+		self.searchNodes[dict].emit(self.specs)
+		self.searchNodes[None].emit()
+
+	specsId = Property(str, getSpecsId, None)
+	specs = Property(dict, getSpecs, None)
+	nodesList = Property(list, getNodesList, setNodesList)
 
 
 class InspectionView(QWidget):
@@ -286,11 +343,10 @@ class InspectionView(QWidget):
 		self.layout().addWidget(main_split_widget)
 
 		# Connect signals
-
 		self.__controller = InspectionController(self)
-		self.loadSelectedSpecs[str].connect(self.__controller.getSpecs)
 
-		self.__controller.specsFound[dict].connect(self.loadSpecs)
+		self.loadSelectedSpecs[str].connect(self.__controller.getSpecs)
+		self.__controller.specsFound[str, dict].connect(self.loadSpecs)
 
 	def __new_section_widget(self, parent):
 		section_widget = NodesFoundWidget(parent)
@@ -320,10 +376,10 @@ class InspectionView(QWidget):
 
 			self.__dynamic_scroll_area_widget.setWidget(None)
 
-	@Slot(dict)
-	def loadSpecs(self, specs):
+	@Slot(str, dict)
+	def loadSpecs(self, specs_id, specs):
 		try:
-			specs_widget = FindSpecsWidget(specs, self)
+			specs_widget = FindSpecsWidget(specs_id, specs, self)
 		except(RuntimeError, Exception) as exc:
 			#QMessageBox.critical("Failed loading specifications", "Unable to load the received specifications")
 			print(exc.message)
