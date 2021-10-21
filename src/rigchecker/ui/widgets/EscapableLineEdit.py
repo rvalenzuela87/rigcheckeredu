@@ -1,8 +1,8 @@
 from PySide2.QtWidgets import QLineEdit
-from PySide2.QtCore import Signal, Property, Qt
+from PySide2.QtCore import Signal, Slot, Property, Qt
 
 
-class EscapableLineEdit(QtWidgets.QLineEdit):
+class EscapableLineEdit(QLineEdit):
 	escapeOnFocusOut = True
 
 	# Signals
@@ -11,6 +11,12 @@ class EscapableLineEdit(QtWidgets.QLineEdit):
 
 	def __init__(self, *args, **kwargs):
 		super(EscapableLineEdit, self).__init__(*args, **kwargs)
+
+		self.returnPressed.connect(self.accept)
+
+	@Slot()
+	def accept(self):
+		self.accepted.emit(self.text())
 
 	def keyPressEvent(self, event):
 		if event.key() == Qt.Key_Escape:

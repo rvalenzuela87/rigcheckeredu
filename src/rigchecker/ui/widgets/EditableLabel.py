@@ -53,8 +53,8 @@ class EditableLabel(QWidget):
         self.cancel_button.clicked.connect(self.turnOffEditMode)
         self.label_edit.escaped.connect(self.turnOffEditMode)
 
-        self.accept_button.clicked.connect(self.emitChangeAttempt)
-        self.label_edit.returnPressed.connect(self.accept_button.clicked.emit)
+        self.accept_button.clicked.connect(self.acceptChanges)
+        self.label_edit.returnPressed.connect(self.acceptChanges)
 
         for w in [self.label_edit, self.accept_button, self.cancel_button]:
             w.setVisible(False)
@@ -95,24 +95,6 @@ class EditableLabel(QWidget):
         self.label.setVisible(True)
 
         self.label_edit.deselect()
-
-    @Slot()
-    def emitChangeAttempt(self):
-        try:
-            assert len(self.label_edit.text()) > 0
-        except AssertionError:
-            # Field is empty
-            self.changeDiscarded[str].emit("Field is empty")
-            self.changeDiscarded[None].emit()
-        else:
-            try:
-                assert float(self.label_edit.text()) <= 1.0 and float(self.label_edit.text() >= 0.0)
-            except AssertionError:
-                # Value is not valid
-                pass
-            else:
-                self.changeAttempt[str, str].emit(self.label.text(), self.label_edit.text())
-                self.changeAttempt[None].emit()
 
     @Slot()
     def acceptChanges(self):

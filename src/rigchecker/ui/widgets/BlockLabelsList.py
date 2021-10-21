@@ -20,12 +20,16 @@ class BlockLabelsList(QWidget):
             self.setLayout(QVBoxLayout(self))
 
         self.__add_button = ClickableLabel.ClickableLabel("Add", self)
+
         self.__add_line_edit = EscapableLineEdit.EscapableLineEdit(self)
         self.__add_line_edit.escapeOnFocusOut = True
+        self.__add_line_edit.setEnabled(False)
+        self.__add_line_edit.setVisible(False)
 
-        self.__add_button.clicked.connect(self.turnOnAddLabelMode)
-        self.__add_line_edit.escaped.connect(self.turnOffAddLabelMode)
+        self.__add_button.clicked.connect(self.enableAddLabelMode)
+        self.__add_line_edit.escaped.connect(self.disableAddLabelMode)
         self.__add_line_edit.accepted.connect(self.addLabel)
+        #self.__add_line_edit.accepted.connect(self.disableAddLabelMode)
 
         self.layout().addWidget(self.__add_line_edit)
         self.layout().addWidget(self.__add_button)
@@ -39,6 +43,7 @@ class BlockLabelsList(QWidget):
     @Slot(str)
     def addLabel(self, label):
         self.layout().insertWidget(0, BlockLabel.BlockLabel(label, self))
+        self.__add_line_edit.setText("")
 
     @Slot(list)
     def setLabels(self, labels):
@@ -65,15 +70,15 @@ class BlockLabelsList(QWidget):
                 self.layout().removeWidget(ch)
 
     @Slot()
-    def turnOnAddLabelMode(self):
+    def enableAddLabelMode(self):
         self.__add_line_edit.setEnabled(True)
         self.__add_line_edit.setText("")
         self.__add_line_edit.setVisible(True)
-        self.__add_line_edit.setFocus(True)
+        self.__add_line_edit.setFocus()
 
     @Slot()
-    def turnOffAddLabelMode(self):
-        self.__add_line_edit.setFocus(False)
+    def disableAddLabelMode(self):
+        self.__add_line_edit.setFocus()
         self.__add_line_edit.setVisible(False)
         self.__add_line_edit.setText("")
         self.__add_line_edit.setEnabled(False)
