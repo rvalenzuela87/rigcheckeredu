@@ -8,13 +8,16 @@ from . import ClickableLabel, EscapableLineEdit
 
 
 class EditableLabel(QWidget):
+    __display_buttons = True
+    __edit_mode_status = False
+
     label = None
     label_edit = None
     accept_button = None
     cancel_button = None
 
     changeAttempt = Signal([None], [str, str])
-    changeDiscarded = Signal([None], [str])
+    changeDiscarded = Signal()
     changed = Signal([None], [str, str])
 
     def __init__(self, text, *args, **kwargs):
@@ -49,9 +52,10 @@ class EditableLabel(QWidget):
 
         self.label_edit.escapeOnFocusOut = False
 
-        self.label.clicked.connect(self.turnOnEditMode)
-        self.cancel_button.clicked.connect(self.turnOffEditMode)
-        self.label_edit.escaped.connect(self.turnOffEditMode)
+        self.label.clicked.connect(self.enableEditMode)
+        self.cancel_button.clicked.connect(self.disableEditMode)
+        self.label_edit.escaped.connect(self.disableEditMode)
+        self.label_edit.escaped.connect(self.changeDiscarded.emit)
 
         self.accept_button.clicked.connect(self.acceptChanges)
         self.label_edit.returnPressed.connect(self.acceptChanges)
@@ -65,42 +69,63 @@ class EditableLabel(QWidget):
         self.layout().addWidget(self.accept_button)
         self.layout().addWidget(self.cancel_button)
 
+    def __getDisplayButtons(self):
+        return self.__display_buttons
+
+    def __setDisplayButtons(self, display):
+        self.__display_buttons = display
+
+    def __getEditModeStatus(self):
+        return self.__edit_mode_status
+
+    def __setEditModeStatus(self, enable):
+        if enable is True:
+            self.enableEditMode()
+        else:
+            self.disableEditMode()
+
     @Slot()
-    def turnOnEditMode(self):
-        self.label.setVisible(False)
+    def enableEditMode(self):
         self.label.setEnabled(False)
-
         self.label_edit.setEnabled(True)
-        self.accept_button.setEnabled(True)
-        self.cancel_button.setEnabled(True)
 
+        self.label.setVisible(False)
         self.label_edit.setVisible(True)
-        self.accept_button.setVisible(True)
-        self.cancel_button.setVisible(True)
+
+        if self.displayButtons is True:
+            self.accept_button.setEnabled(True)
+            self.cancel_button.setEnabled(True)
+
+            self.accept_button.setVisible(True)
+            self.cancel_button.setVisible(True)
 
         self.label_edit.setFocus()
         self.label_edit.selectAll()
+        self.__edit_mode_status = True
 
     @Slot()
-    def turnOffEditMode(self):
+    def disableEditMode(self):
+        self.label_edit.deselect()
         self.label_edit.setEnabled(False)
-        self.accept_button.setEnabled(False)
-        self.cancel_button.setEnabled(False)
+        self.label.setEnabled(True)
 
         self.label_edit.setVisible(False)
-        self.accept_button.setVisible(False)
-        self.cancel_button.setVisible(False)
 
-        self.label.setEnabled(True)
+        if self.displayButtons is True:
+            self.accept_button.setEnabled(False)
+            self.cancel_button.setEnabled(False)
+
+            self.accept_button.setVisible(False)
+            self.cancel_button.setVisible(False)
+
         self.label.setVisible(True)
-
-        self.label_edit.deselect()
+        self.__edit_mode_status = False
 
     @Slot()
     def acceptChanges(self):
         previous_value = self.label.text()
         self.label.setText(self.label_edit.text())
-        self.turnOffEditMode()
+        self.disableEditMode()
 
         self.changed[str, str].emit(previous_value, self.label.text())
         self.changed[None].emit()
@@ -122,3 +147,5 @@ class EditableLabel(QWidget):
         self.label_edit.setMinLength(min)
 
     text = Property(str, getText, setText)
+    displayButtons = Property(bool, __getDisplayButtons, __setDisplayButtons)
+    editModeOn = Property(bool, __getEditModeStatus, __setEditModeStatus)

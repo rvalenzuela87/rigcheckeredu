@@ -2,6 +2,7 @@ from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout
 from PySide2.QtCore import Signal, Slot, Property, Qt
 
 from . import BlockLabel, ClickableLabel, EscapableLineEdit
+reload(BlockLabel)
 
 
 class BlockLabelsList(QWidget):
@@ -35,7 +36,7 @@ class BlockLabelsList(QWidget):
         self.layout().addWidget(self.__add_button)
 
     def getLabels(self):
-        return [ch.text() for ch in self.findChildren(BlockLabel.BlockLabel)]
+        return [ch.getText() for ch in self.findChildren(BlockLabel.BlockLabel)]
 
     def getBlockLabels(self):
         return [ch for ch in self.findChildren(BlockLabel.BlockLabel)]
@@ -54,7 +55,7 @@ class BlockLabelsList(QWidget):
         for l in labels:
             l = BlockLabel.BlockLabel(l, self)
 
-            self.layout().addWidget(l)
+            self.layout().insertWidget(0, l)
 
     @Slot()
     def clearLabels(self):
@@ -94,4 +95,3 @@ class BlockLabelsList(QWidget):
 
     labels = Property(list, getLabels, setLabels)
     blockLabels = Property(list, getBlockLabels, None)
-    addLabelMode = Property(bool, set)

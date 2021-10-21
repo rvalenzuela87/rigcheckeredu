@@ -6,7 +6,7 @@ from PySide2.QtCore import Qt, Property, Slot, Signal, QObject
 
 from .widgets import ResizeScrollAreaWidgetEventFilter, MayaGroupBox, BlockLabel, BlockLabelsList
 from .widgets import ClickableLabel, EditableLabel
-reload(ClickableLabel)
+reload(EditableLabel)
 reload(BlockLabelsList)
 
 
@@ -224,8 +224,11 @@ class NewSpecFormWidget(QWidget):
 		self.__spec_combo_box.currentTextChanged.connect(self.enableEditMode)
 
 		self.__esc_line_edit = EditableLabel.EditableLabel(self)
+		self.__esc_line_edit.displayButtons = False
 		self.__esc_line_edit.setEnabled(False)
 		self.__esc_line_edit.setVisible(False)
+		self.__esc_line_edit.changeDiscarded.connect(self.rejected.emit)
+		self.__esc_line_edit.changed[None].connect(self.acceptSpec)
 
 		self.__block_labels_list = BlockLabelsList.BlockLabelsList(Qt.Horizontal, self)
 		self.__block_labels_list.setEnabled(False)
@@ -235,7 +238,7 @@ class NewSpecFormWidget(QWidget):
 		self.__accept_button.clicked.connect(self.acceptSpec)
 
 		self.__cancel_button = QPushButton("Cancel", self)
-		self.__cancel_button.clicked.connect(self.discardSpec)
+		self.__cancel_button.clicked.connect(self.rejected.emit)
 
 		form_layout.addWidget(self.__spec_combo_box)
 		form_layout.addWidget(self.__esc_line_edit)
@@ -256,10 +259,10 @@ class NewSpecFormWidget(QWidget):
 			self.__esc_line_edit.setText("")
 			self.__esc_line_edit.setEnabled(True)
 			self.__esc_line_edit.setVisible(True)
-			self.__esc_line_edit.turnOnEditMode()
+			self.__esc_line_edit.enableEditMode()
 		elif self.__specs_types[specType] is list:
 			self.__esc_line_edit.setVisible(False)
-			self.__esc_line_edit.turnOffEditMode()
+			self.__esc_line_edit.disableEditMode()
 			self.__esc_line_edit.setEnabled(False)
 
 			self.__block_labels_list.clearLabels()
@@ -287,14 +290,6 @@ class NewSpecFormWidget(QWidget):
 			spec_value = tuple(self.__block_labels_list.labels)
 
 		self.accepted.emit((spec_type, spec_value))
-
-	@Slot()
-	def discardSpec(self):
-		self.setVisible(False)
-		self.setParent(None)
-		self.deleteLater()
-
-		self.rejected.emit()
 
 
 class FindSpecsWidgetBck(QWidget):
@@ -445,8 +440,10 @@ class FindSpecsWidget(QWidget):
 	__add_spec_button = None
 	__nodes_found_widget = None
 	__total_nodes_found_label = None
+	__save_specs_button = None
 
 	# Signals
+	specAdded = Signal([str], [None])
 	searchNodes = Signal([dict], [None])
 	selectNodes = Signal(list)
 	isolateNodes = Signal(list)
@@ -465,6 +462,7 @@ class FindSpecsWidget(QWidget):
 
 		specs_form_layout = QFormLayout(self.__specs_box)
 		specs_form_layout.setContentsMargins(0, 0, 0, 0)
+		specs_form_layout.setAlignment(Qt.AlignVCenter)
 
 		self.__specs_box.contentLayout().addLayout(specs_form_layout)
 
@@ -480,12 +478,15 @@ class FindSpecsWidget(QWidget):
 		self.__nodes_found_widget = NodesFoundWidget("Matching Nodes", self)
 		self.__nodes_found_widget.setFlat(True)
 
+		self.__save_specs_button = QPushButton("Save", self.__specs_box)
+
 		# Build specifications box
 		new_spec_layout = QHBoxLayout(self.__specs_box)
 		new_spec_layout.setAlignment(Qt.AlignRight)
 		new_spec_layout.setContentsMargins(0, 0, 0, 0)
 
 		new_spec_layout.addWidget(self.__add_spec_button)
+		new_spec_layout.addWidget(self.__save_specs_button)
 
 		self.__specs_box.contentLayout().addLayout(new_spec_layout)
 
@@ -530,18 +531,26 @@ class FindSpecsWidget(QWidget):
 	@Slot(tuple)
 	def addSpec(self, specData):
 		specData = SpecData(specData[0], specData[1])
-		print("Adding: {}".format(specData))
+
 		self.__specs[specData.name] = specData.value
 		specs_form_layout = self.__specs_box.findChild(QFormLayout)
-		print("Form layout: {}".format(specs_form_layout))
 
 		if type(specData.value) in [str, 'unicode']:
-			specs_form_layout.addRow(specData.name, EditableLabel.EditableLabel(specData.value, self.__specs_box))
+			value_edit_label = EditableLabel.EditableLabel(specData.value, self.__specs_box)
+			value_edit_label.displayButtons = False
+
+			specs_form_layout.addRow("%s:" % specData.name, value_edit_label)
 		elif type(specData.value) in [list, tuple]:
 			block_labels_list = BlockLabelsList.BlockLabelsList(Qt.Horizontal, self.__specs_box)
+
 			block_labels_list.labels = [v for v in specData.value]
 
-			specs_form_layout.addRow(specData.name, block_labels_list)
+			specs_form_layout.addRow("%s:" % specData.name, block_labels_list)
+
+		self.specAdded[str].emit(specData.name)
+		self.specAdded[None].emit()
+
+		self.disableNewSpecForm()
 
 	def getNodesList(self):
 		return self.__nodes_found_widget.nodesList
@@ -552,9 +561,11 @@ class FindSpecsWidget(QWidget):
 			self.__new_spec_widget = NewSpecFormWidget(self.__specs_box)
 			self.__new_spec_widget.setVisible(False)
 			self.__new_spec_widget.setEnabled(False)
-			self.__new_spec_widget.accepted.connect(self.addSpec)
 
-			self.__specs_box.contentLayout().addWidget(self.__new_spec_widget)
+			self.__new_spec_widget.accepted.connect(self.addSpec)
+			self.__new_spec_widget.rejected.connect(self.disableNewSpecForm)
+
+			self.__specs_box.contentLayout().insertWidget(1, self.__new_spec_widget)
 
 		self.__new_spec_widget.setEnabled(True)
 		self.__new_spec_widget.setVisible(True)
@@ -564,11 +575,14 @@ class FindSpecsWidget(QWidget):
 		if self.__new_spec_widget is not None:
 			self.__new_spec_widget.setVisible(False)
 			self.__new_spec_widget.setEnabled(False)
+			self.__new_spec_widget.setParent(None)
+
 			self.__new_spec_widget.accepted.disconnect(self.addSpec)
+			self.__new_spec_widget.rejected.disconnect(self.disableNewSpecForm)
 
 			self.__specs_box.layout().removeWidget(self.__new_spec_widget)
 
-			self.__new_spec_widget.delete()
+			self.__new_spec_widget.deleteLater()
 			self.__new_spec_widget = None
 
 	@Slot()

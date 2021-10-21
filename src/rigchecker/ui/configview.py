@@ -278,7 +278,7 @@ class TypeConfEditForm(QGroupBox):
 		conf_values = OrderedDict()
 
 		for attr in ("suffix", "exp"):
-			conf_values[attr] = self.__getattribute__("_".join([attr, "line_edit"])).text()
+			conf_values[attr] = self.__getattribute__("_".join([attr, "line_edit"])).getText()
 
 		conf_values["types"] = self.types
 		conf_values["discovery_methods"] = self.discoveryMethods
