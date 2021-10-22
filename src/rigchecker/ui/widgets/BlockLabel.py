@@ -14,10 +14,13 @@ class BlockLabel(QWidget):
 
     def __init__(self, text, *args, **kwargs):
         super(BlockLabel, self).__init__(*args, **kwargs)
+        self.setSizePolicy(
+            QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
+        )
 
         self.__text_label = QLabel("", self)
         self.__text_label.setSizePolicy(
-            QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+            QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred)
         )
         self.__close_button = ClickableLabel.ClickableLabel("x", self)
         self.__close_button.setSizePolicy(
@@ -61,8 +64,8 @@ class BlockLabel(QWidget):
         return self.closeButton.isEnabled()
 
     def setLocked(self, locked):
-        self.closeButton.setEnabled(not locked)
         self.closeButton.setVisible(not locked)
+        self.closeButton.setEnabled(not locked)
 
     @Slot()
     def click(self):

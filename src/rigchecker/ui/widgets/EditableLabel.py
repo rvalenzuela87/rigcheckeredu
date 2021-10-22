@@ -1,7 +1,7 @@
 import os
 
 from PySide2.QtWidgets import QWidget, QHBoxLayout
-from PySide2.QtCore import Signal, Slot, Property
+from PySide2.QtCore import Signal, Slot, Property, Qt
 from PySide2.QtGui import QPixmap
 
 from . import ClickableLabel, EscapableLineEdit
@@ -10,6 +10,7 @@ from . import ClickableLabel, EscapableLineEdit
 class EditableLabel(QWidget):
     __display_buttons = True
     __edit_mode_status = False
+    __editable = True
 
     label = None
     label_edit = None
@@ -36,6 +37,8 @@ class EditableLabel(QWidget):
         )
 
         self.label = ClickableLabel.ClickableLabel(self)
+        self.label.underline = self.__editable
+
         self.label_edit = EscapableLineEdit.EscapableLineEdit(self)
 
         self.accept_button = ClickableLabel.ClickableLabel(self)
@@ -84,24 +87,40 @@ class EditableLabel(QWidget):
         else:
             self.disableEditMode()
 
+    def isEditable(self):
+        return self.__editable
+
+    def setEditable(self, editable):
+        self.__editable = editable
+        self.label.underline = editable
+
+        if editable is True:
+            self.label.setCursor(Qt.PointingHandCursor)
+        else:
+            self.label.setCursor(Qt.ArrowCursor)
+
     @Slot()
     def enableEditMode(self):
-        self.label.setEnabled(False)
-        self.label_edit.setEnabled(True)
+        editable = self.editable
+        display_buttons = self.displayButtons
 
-        self.label.setVisible(False)
-        self.label_edit.setVisible(True)
+        self.label.setVisible(not editable)
+        self.label.setEnabled(not editable)
 
-        if self.displayButtons is True:
-            self.accept_button.setEnabled(True)
-            self.cancel_button.setEnabled(True)
+        self.label_edit.setEnabled(True and editable)
+        self.label_edit.setVisible(True and editable)
 
-            self.accept_button.setVisible(True)
-            self.cancel_button.setVisible(True)
+        self.accept_button.setEnabled(display_buttons and editable)
+        self.cancel_button.setEnabled(display_buttons and editable)
 
-        self.label_edit.setFocus()
-        self.label_edit.selectAll()
-        self.__edit_mode_status = True
+        self.accept_button.setVisible(display_buttons and editable)
+        self.cancel_button.setVisible(display_buttons and editable)
+
+        if editable is True:
+            self.label_edit.setFocus()
+            self.label_edit.selectAll()
+
+        self.__edit_mode_status = True and editable
 
     @Slot()
     def disableEditMode(self):
@@ -147,5 +166,6 @@ class EditableLabel(QWidget):
         self.label_edit.setMinLength(min)
 
     text = Property(str, getText, setText)
+    editable = Property(bool, isEditable, setEditable)
     displayButtons = Property(bool, __getDisplayButtons, __setDisplayButtons)
     editModeOn = Property(bool, __getEditModeStatus, __setEditModeStatus)

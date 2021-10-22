@@ -28,7 +28,7 @@ class BlockLabel(QWidget):
 		self.__close_button.setSizePolicy(
 			QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
 		)
-		self.__close_button.clicked.connect(self.delete)
+		self.__close_button.clicked[None].connect(self.delete)
 
 		self.layout().addWidget(self.__text_label, 0, 0)
 		self.layout().addWidget(self.__close_button, 0, 1)

@@ -1,8 +1,10 @@
+import os
 import random
 from collections import namedtuple
 
 from PySide2.QtWidgets import QWidget, QScrollArea, QPushButton, QLabel, QGroupBox, QTreeWidget, QTreeWidgetItem, QSplitter, QMessageBox, QComboBox, QVBoxLayout, QHBoxLayout, QGridLayout, QFormLayout, QSizePolicy
 from PySide2.QtCore import Qt, Property, Slot, Signal, QObject
+from PySide2.QtGui import QPixmap
 
 from .widgets import ResizeScrollAreaWidgetEventFilter, MayaGroupBox, BlockLabel, BlockLabelsList
 from .widgets import ClickableLabel, EditableLabel
@@ -215,10 +217,6 @@ class NewSpecFormWidget(QWidget):
 		form_layout.setContentsMargins(0, 0, 0, 0)
 		form_layout.setAlignment(Qt.AlignLeft)
 
-		buttons_layout = QHBoxLayout(self)
-		buttons_layout.setContentsMargins(0, 0, 0, 0)
-		buttons_layout.setAlignment(Qt.AlignRight)
-
 		self.__spec_combo_box = QComboBox(self)
 		self.__spec_combo_box.addItems(self.__specs_types.keys())
 		self.__spec_combo_box.currentTextChanged.connect(self.enableEditMode)
@@ -234,21 +232,28 @@ class NewSpecFormWidget(QWidget):
 		self.__block_labels_list.setEnabled(False)
 		self.__block_labels_list.setVisible(False)
 
-		self.__accept_button = QPushButton("Add", self)
-		self.__accept_button.clicked.connect(self.acceptSpec)
+		accept_target_alias_edit_pixmap = QPixmap(
+			os.path.join(os.environ["ICONS_DIR"], "checkbox-circle-fill.png")
+		)
+		cancel_target_alias_edit_pixmap = QPixmap(
+			os.path.join(os.environ["ICONS_DIR"], "close-line.png")
+		)
 
-		self.__cancel_button = QPushButton("Cancel", self)
-		self.__cancel_button.clicked.connect(self.rejected.emit)
+		self.__accept_button = ClickableLabel.ClickableLabel(self)
+		self.__accept_button.setPixmap(accept_target_alias_edit_pixmap)
+		self.__accept_button.clicked[None].connect(self.acceptSpec)
+
+		self.__cancel_button = ClickableLabel.ClickableLabel(self)
+		self.__cancel_button.setPixmap(cancel_target_alias_edit_pixmap)
+		self.__cancel_button.clicked[None].connect(self.rejected.emit)
 
 		form_layout.addWidget(self.__spec_combo_box)
 		form_layout.addWidget(self.__esc_line_edit)
 		form_layout.addWidget(self.__block_labels_list)
-
-		buttons_layout.addWidget(self.__accept_button)
-		buttons_layout.addWidget(self.__cancel_button)
+		form_layout.addWidget(self.__accept_button)
+		form_layout.addWidget(self.__cancel_button)
 
 		self.layout().addLayout(form_layout)
-		self.layout().addLayout(buttons_layout)
 
 	@Slot(str)
 	def enableEditMode(self, specType):
@@ -429,10 +434,25 @@ class FindSpecsWidgetBck(QWidget):
 
 
 class FindSpecsWidget(QWidget):
+	__editable = False
 	__specs_id = None
 	__specs = None
+	__specs_types = {
+		"suffix": str,
+		"expression": str,
+		"type": list,
+		"location": list
+	}
 
 	__controller = None
+
+	__new_spec_elements_widget = None
+	__new_spec_buttons_widget = None
+	__new_spec_type_combo = None
+	__new_spec_line_edit = None
+	__new_spec_block_labels_list = None
+	__new_spec_accept_button = None
+	__new_spec_cancel_button = None
 
 	__specs_box = None
 	__results_box = None
@@ -441,6 +461,7 @@ class FindSpecsWidget(QWidget):
 	__nodes_found_widget = None
 	__total_nodes_found_label = None
 	__save_specs_button = None
+	__edit_specs_button = None
 
 	# Signals
 	specAdded = Signal([str], [None])
@@ -455,14 +476,19 @@ class FindSpecsWidget(QWidget):
 		self.layout().setAlignment(Qt.AlignTop)
 
 		self.__add_spec_button = ClickableLabel.ClickableLabel("New Spec", self)
-		self.__add_spec_button.clicked.connect(self.enableNewSpecForm)
+		self.__add_spec_button.clicked[None].connect(self.enableNewSpecForm)
+		self.__add_spec_button.setEnabled(self.__editable)
+		self.__add_spec_button.setVisible(self.__editable)
 
 		self.__specs_box = MayaGroupBox.MayaGroupBox("Finding Specs", self)
 		self.__specs_box.setContentLayout(QVBoxLayout(self.__specs_box))
 
-		specs_form_layout = QFormLayout(self.__specs_box)
+		specs_form_layout = QGridLayout(self.__specs_box)
 		specs_form_layout.setContentsMargins(0, 0, 0, 0)
 		specs_form_layout.setAlignment(Qt.AlignVCenter)
+
+		specs_box_size_policy = QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
+		specs_box_size_policy.setHorizontalStretch(1)
 
 		self.__specs_box.contentLayout().addLayout(specs_form_layout)
 
@@ -478,7 +504,11 @@ class FindSpecsWidget(QWidget):
 		self.__nodes_found_widget = NodesFoundWidget("Matching Nodes", self)
 		self.__nodes_found_widget.setFlat(True)
 
+		self.__edit_specs_button = QPushButton("Edit", self.__specs_box)
+		self.__edit_specs_button.clicked.connect(self.enableEditMode)
+
 		self.__save_specs_button = QPushButton("Save", self.__specs_box)
+		self.__save_specs_button.clicked.connect(self.disableEditMode)
 
 		# Build specifications box
 		new_spec_layout = QHBoxLayout(self.__specs_box)
@@ -486,6 +516,7 @@ class FindSpecsWidget(QWidget):
 		new_spec_layout.setContentsMargins(0, 0, 0, 0)
 
 		new_spec_layout.addWidget(self.__add_spec_button)
+		new_spec_layout.addWidget(self.__edit_specs_button)
 		new_spec_layout.addWidget(self.__save_specs_button)
 
 		self.__specs_box.contentLayout().addLayout(new_spec_layout)
@@ -522,30 +553,124 @@ class FindSpecsWidget(QWidget):
 
 		self.__controller.matchingNodesFound.connect(self.setNodesList)
 
+	@Slot()
+	def __acceptSpecs(self):
+		spec_type = self.__new_spec_type_combo.currentText()
+
+		if self.__specs_types[self.__new_spec_type_combo.currentText()] is str:
+			spec_value = str(self.__new_spec_line_edit.text)
+		elif self.__specs_types[self.__new_spec_type_combo.currentText()] is list:
+			spec_value = tuple(self.__new_spec_block_labels_list.labels)
+		else:
+			spec_value = ""
+
+		self.addSpec((spec_type, spec_value))
+
+	@Slot(ClickableLabel.ClickableLabel)
+	def __removeRow(self, closeButton):
+		specs_form_layout = self.__specs_box.findChild(QGridLayout)
+
+		try:
+			row, __, __, __ = specs_form_layout.getItemPosition(specs_form_layout.indexOf(closeButton))
+		except(AttributeError, Exception) as exc:
+			print(exc.message)
+
+		columns_count = specs_form_layout.columnCount()
+		list_widgets = map(
+			specs_form_layout.itemAtPosition, (row for __ in xrange(columns_count)), xrange(columns_count)
+		)
+
+		try:
+			for w in (li.widget() for li in list_widgets):
+				w.setVisible(False)
+				w.setParent(None)
+				specs_form_layout.removeWidget(w)
+				w.deleteLater()
+		except(RuntimeError, Exception) as exc:
+			pass
+
 	def getSpecsId(self):
 		return self.__specs_id
 
 	def getSpecs(self):
 		return self.__specs
 
+	def isEditable(self):
+		return self.__editable
+
+	def setEditable(self, editable):
+		self.__editable = editable
+
+		specs_form_layout = self.__specs_box.findChild(QGridLayout)
+
+		for row, col in ((r, c) for r in xrange(specs_form_layout.rowCount()) for c in  xrange(specs_form_layout.columnCount())):
+			try:
+				widget = specs_form_layout.itemAtPosition(row, col).widget()
+			except AttributeError:
+				continue
+
+			if type(widget) is ClickableLabel.ClickableLabel:
+				widget.setVisible(editable)
+				widget.setEnabled(editable)
+			else:
+				try:
+					widget.editable = editable
+				except AttributeError:
+					pass
+
+		self.__add_spec_button.setEnabled(editable)
+		self.__add_spec_button.setVisible(editable)
+
+		'''if editable is True:
+			self.__edit_specs_button.setText("Save")
+			self.__edit_specs_button.clicked.disconnect(self.enableEditMode)
+			self.__edit_specs_button.clicked.connect(self.disableEditMode)
+		else:
+			self.__edit_specs_button.setText("Edit")
+			self.__edit_specs_button.clicked.disconnect(self.disableEditMode)
+			self.__edit_specs_button.clicked.connect(self.enableEditMode)'''
+
 	@Slot(tuple)
 	def addSpec(self, specData):
 		specData = SpecData(specData[0], specData[1])
 
 		self.__specs[specData.name] = specData.value
-		specs_form_layout = self.__specs_box.findChild(QFormLayout)
+		specs_form_layout = self.__specs_box.findChild(QGridLayout)
+
+		spec_type_label = QLabel("%s:" % specData.name, self.__specs_box)
+		spec_type_label.setAlignment(Qt.AlignRight)
+		spec_type_label.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred))
+
+		prev_to_last_row = specs_form_layout.rowCount() - 1
 
 		if type(specData.value) in [str, 'unicode']:
 			value_edit_label = EditableLabel.EditableLabel(specData.value, self.__specs_box)
 			value_edit_label.displayButtons = False
+			value_edit_label.editable = self.editable
 
-			specs_form_layout.addRow("%s:" % specData.name, value_edit_label)
+			specs_form_layout.addWidget(spec_type_label, prev_to_last_row, 0)
+			specs_form_layout.addWidget(value_edit_label, prev_to_last_row, 1)
 		elif type(specData.value) in [list, tuple]:
 			block_labels_list = BlockLabelsList.BlockLabelsList(Qt.Horizontal, self.__specs_box)
-
 			block_labels_list.labels = [v for v in specData.value]
+			block_labels_list.editable = self.editable
+			block_labels_list.setAlignment(Qt.AlignLeft)
 
-			specs_form_layout.addRow("%s:" % specData.name, block_labels_list)
+			specs_form_layout.addWidget(spec_type_label, prev_to_last_row, 0)
+			specs_form_layout.addWidget(block_labels_list, prev_to_last_row, 1)
+
+		remove_row_pixmap = QPixmap(
+			os.path.join(os.environ["ICONS_DIR"], "delete-bin-2-fill.png")
+		)
+
+		remove_row_button = ClickableLabel.ClickableLabel(self.__specs_box)
+		remove_row_button.clicked[QLabel].connect(self.__removeRow)
+		remove_row_button.setPixmap(remove_row_pixmap)
+		remove_row_button.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred))
+		remove_row_button.setVisible(False)
+		remove_row_button.setEnabled(False)
+
+		specs_form_layout.addWidget(remove_row_button, prev_to_last_row, 2)
 
 		self.specAdded[str].emit(specData.name)
 		self.specAdded[None].emit()
@@ -557,33 +682,167 @@ class FindSpecsWidget(QWidget):
 
 	@Slot()
 	def enableNewSpecForm(self):
-		if self.__new_spec_widget is None:
-			self.__new_spec_widget = NewSpecFormWidget(self.__specs_box)
-			self.__new_spec_widget.setVisible(False)
-			self.__new_spec_widget.setEnabled(False)
+		form_layout = self.findChild(QGridLayout)
 
-			self.__new_spec_widget.accepted.connect(self.addSpec)
-			self.__new_spec_widget.rejected.connect(self.disableNewSpecForm)
+		self.__new_spec_type_combo = QComboBox(self)
+		self.__new_spec_type_combo.addItems(self.__specs_types.keys())
+		self.__new_spec_type_combo.currentTextChanged.connect(self.enableSpecEditElements)
+		self.__new_spec_type_combo.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Maximum))
 
-			self.__specs_box.contentLayout().insertWidget(1, self.__new_spec_widget)
+		self.__new_spec_line_edit = EditableLabel.EditableLabel(self)
+		self.__new_spec_line_edit.editable = True
+		self.__new_spec_line_edit.displayButtons = False
+		self.__new_spec_line_edit.setEnabled(False)
+		self.__new_spec_line_edit.setVisible(False)
+		self.__new_spec_line_edit.changeDiscarded.connect(self.disableNewSpecForm)
+		self.__new_spec_line_edit.changed[None].connect(self.__acceptSpecs)
 
-		self.__new_spec_widget.setEnabled(True)
-		self.__new_spec_widget.setVisible(True)
+		self.__new_spec_block_labels_list = BlockLabelsList.BlockLabelsList(Qt.Horizontal, self)
+		self.__new_spec_block_labels_list.editable = True
+		self.__new_spec_block_labels_list.setAlignment(Qt.AlignLeft)
+		self.__new_spec_block_labels_list.setEnabled(False)
+		self.__new_spec_block_labels_list.setVisible(False)
+
+		accept_target_alias_edit_pixmap = QPixmap(
+			os.path.join(os.environ["ICONS_DIR"], "checkbox-circle-fill.png")
+		)
+		cancel_target_alias_edit_pixmap = QPixmap(
+			os.path.join(os.environ["ICONS_DIR"], "close-line.png")
+		)
+
+		self.__new_spec_accept_button = ClickableLabel.ClickableLabel(self)
+		self.__new_spec_accept_button.setPixmap(accept_target_alias_edit_pixmap)
+		self.__new_spec_accept_button.clicked[None].connect(self.__acceptSpecs)
+		self.__new_spec_accept_button.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred))
+
+		self.__new_spec_cancel_button = ClickableLabel.ClickableLabel(self)
+		self.__new_spec_cancel_button.setPixmap(cancel_target_alias_edit_pixmap)
+		self.__new_spec_cancel_button.clicked[None].connect(self.disableNewSpecForm)
+		self.__new_spec_cancel_button.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred))
+
+		self.__new_spec_elements_widget = QWidget(self.__specs_box)
+		self.__new_spec_elements_widget.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred))
+		self.__new_spec_elements_widget.setLayout(QHBoxLayout(self.__new_spec_elements_widget))
+		self.__new_spec_elements_widget.layout().setContentsMargins(0, 0, 0, 0)
+
+		self.__new_spec_buttons_widget = QWidget(self.__specs_box)
+		self.__new_spec_buttons_widget.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred))
+		self.__new_spec_buttons_widget.setLayout(QHBoxLayout(self.__new_spec_buttons_widget))
+		self.__new_spec_buttons_widget.layout().setContentsMargins(0, 0, 0, 0)
+
+		self.__new_spec_elements_widget.layout().addWidget(self.__new_spec_line_edit)
+		self.__new_spec_elements_widget.layout().addWidget(self.__new_spec_block_labels_list)
+
+		self.__new_spec_buttons_widget.layout().setAlignment(Qt.AlignRight)
+		self.__new_spec_buttons_widget.layout().addWidget(self.__new_spec_accept_button)
+		self.__new_spec_buttons_widget.layout().addWidget(self.__new_spec_cancel_button)
+
+		last_row = form_layout.rowCount()
+
+		form_layout.addWidget(self.__new_spec_type_combo, last_row, 0)
+		form_layout.addWidget(self.__new_spec_elements_widget, last_row, 1)
+		form_layout.addWidget(self.__new_spec_buttons_widget, last_row, 3)
+
+		self.__specs_box.resize(form_layout.sizeHint())
+
+	@Slot(str)
+	def enableSpecEditElements(self, specType):
+		if self.__specs_types[specType] is str:
+			self.__new_spec_block_labels_list.setVisible(False)
+			self.__new_spec_block_labels_list.setEnabled(False)
+
+			self.__new_spec_line_edit.setText("")
+			self.__new_spec_line_edit.setEnabled(True)
+			self.__new_spec_line_edit.setVisible(True)
+			self.__new_spec_line_edit.enableEditMode()
+		elif self.__specs_types[specType] is list:
+			self.__new_spec_line_edit.setVisible(False)
+			self.__new_spec_line_edit.disableEditMode()
+			self.__new_spec_line_edit.setEnabled(False)
+
+			self.__new_spec_block_labels_list.clearLabels()
+			self.__new_spec_block_labels_list.setEnabled(True)
+			self.__new_spec_block_labels_list.setVisible(True)
+			self.__new_spec_block_labels_list.enableAddLabelMode()
 
 	@Slot()
 	def disableNewSpecForm(self):
-		if self.__new_spec_widget is not None:
-			self.__new_spec_widget.setVisible(False)
-			self.__new_spec_widget.setEnabled(False)
-			self.__new_spec_widget.setParent(None)
+		specs_form_layout = self.__specs_box.findChild(QGridLayout)
 
-			self.__new_spec_widget.accepted.disconnect(self.addSpec)
-			self.__new_spec_widget.rejected.disconnect(self.disableNewSpecForm)
+		self.__new_spec_type_combo.setVisible(False)
+		self.__new_spec_elements_widget.setVisible(False)
+		self.__new_spec_buttons_widget.setVisible(False)
 
-			self.__specs_box.layout().removeWidget(self.__new_spec_widget)
+		try:
+			self.__new_spec_type_combo.currentTextChanged.disconnect(self.enableSpecEditElements)
+		except AttributeError:
+			pass
+		else:
+			self.__new_spec_type_combo.setParent(None)
+			specs_form_layout.removeWidget(self.__new_spec_type_combo)
+			self.__new_spec_type_combo.deleteLater()
 
-			self.__new_spec_widget.deleteLater()
-			self.__new_spec_widget = None
+		try:
+			self.__new_spec_line_edit.changed[None].disconnect(self.__acceptSpecs)
+			self.__new_spec_line_edit.changeDiscarded.connect(self.disableNewSpecForm)
+		except AttributeError:
+			pass
+		else:
+			self.__new_spec_line_edit.setParent(None)
+			self.__new_spec_elements_widget.layout().removeWidget(self.__new_spec_line_edit)
+			self.__new_spec_line_edit.deleteLater()
+
+		try:
+			self.__new_spec_block_labels_list.setParent(None)
+		except AttributeError:
+			pass
+		else:
+			self.__new_spec_elements_widget.layout().removeWidget(self.__new_spec_block_labels_list)
+			self.__new_spec_block_labels_list.deleteLater()
+
+		try:
+			self.__new_spec_accept_button.clicked[None].disconnect(self.__acceptSpecs)
+		except AttributeError:
+			pass
+		else:
+			self.__new_spec_accept_button.setParent(None)
+			self.__new_spec_buttons_widget.layout().removeWidget(self.__new_spec_accept_button)
+			self.__new_spec_accept_button.deleteLater()
+
+		try:
+			self.__new_spec_cancel_button.clicked[None].disconnect(self.disableNewSpecForm)
+		except AttributeError:
+			pass
+		else:
+			self.__new_spec_cancel_button.setParent(None)
+			self.__new_spec_buttons_widget.layout().removeWidget(self.__new_spec_cancel_button)
+			self.__new_spec_cancel_button.deleteLater()
+
+		self.__new_spec_elements_widget.setParent(None)
+		specs_form_layout.removeWidget(self.__new_spec_elements_widget)
+		self.__new_spec_elements_widget.deleteLater()
+
+		self.__new_spec_buttons_widget.setParent(None)
+		specs_form_layout.removeWidget(self.__new_spec_buttons_widget)
+		self.__new_spec_buttons_widget.deleteLater()
+
+	@Slot()
+	def disableSpecEditElements(self):
+		self.__new_spec_line_edit.setVisible(False)
+		self.__new_spec_line_edit.setText("")
+		self.__new_spec_line_edit.setEnabled(False)
+
+		self.__new_spec_block_labels_list.setVisible(False)
+		self.__new_spec_block_labels_list.clearLabels()
+		self.__new_spec_block_labels_list.setEnabled(False)
+
+	@Slot()
+	def enableEditMode(self):
+		self.editable = True
+
+	@Slot()
+	def disableEditMode(self):
+		self.editable = False
 
 	@Slot()
 	def setNodesList(self, nodesList):
@@ -603,6 +862,7 @@ class FindSpecsWidget(QWidget):
 	specsId = Property(str, getSpecsId, None)
 	specs = Property(dict, getSpecs, None)
 	nodesList = Property(list, getNodesList, setNodesList)
+	editable = Property(bool, isEditable, setEditable)
 
 
 class InspectionView(QWidget):

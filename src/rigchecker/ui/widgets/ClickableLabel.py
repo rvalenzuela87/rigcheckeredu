@@ -2,8 +2,8 @@ from PySide2 import QtWidgets, QtCore, QtGui
 
 
 class ClickableLabel(QtWidgets.QLabel):
-	clicked = QtCore.Signal()
-	double_clicked = QtCore.Signal()
+	clicked = QtCore.Signal([None], [QtWidgets.QLabel])
+	doubleClicked = QtCore.Signal([None], [QtWidgets.QLabel])
 
 	def __init__(self, *args, **kwargs):
 		super(ClickableLabel, self).__init__(*args, **kwargs)
@@ -16,11 +16,13 @@ class ClickableLabel(QtWidgets.QLabel):
 
 	@QtCore.Slot()
 	def click(self):
-		self.clicked.emit()
+		self.clicked[None].emit()
+		self.clicked[QtWidgets.QLabel].emit(self)
 
 	@QtCore.Slot()
 	def doubleClick(self):
-		self.double_clicked.emit()
+		self.doubleClicked[None].emit()
+		self.doubleClicked[QtWidgets.QLabel].emit(self)
 
 	def isUnderline(self):
 		return self.font().isUnderline()
@@ -33,7 +35,8 @@ class ClickableLabel(QtWidgets.QLabel):
 
 	def mouseReleaseEvent(self, event):
 		if event.button() == QtCore.Qt.LeftButton:
-			self.clicked.emit()
+			self.clicked[None].emit()
+			self.clicked[QtWidgets.QLabel].emit(self)
 
 		super(ClickableLabel, self).mouseReleaseEvent(event)
 
