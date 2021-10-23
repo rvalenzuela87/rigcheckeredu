@@ -3,8 +3,8 @@ import random
 from collections import namedtuple
 
 from PySide2.QtWidgets import QWidget, QScrollArea, QPushButton, QLabel, QGroupBox, QTreeWidget, QTreeWidgetItem, QSplitter, QMessageBox, QComboBox, QVBoxLayout, QHBoxLayout, QGridLayout, QFormLayout, QSizePolicy
-from PySide2.QtCore import Qt, Property, Slot, Signal, QObject
-from PySide2.QtGui import QPixmap
+from PySide2.QtCore import Qt, Property, Slot, Signal, QObject, QRegExp
+from PySide2.QtGui import QPixmap, QRegExpValidator, QPalette, QBrush, QColor
 
 from .widgets import ResizeScrollAreaWidgetEventFilter, MayaGroupBox, BlockLabel, BlockLabelsList
 from .widgets import ClickableLabel, EditableLabel
@@ -138,7 +138,8 @@ class NodesFoundWidget(MayaGroupBox.MayaGroupBox):
 		central_widget = QWidget(self)
 		central_widget.setLayout(QVBoxLayout(self))
 		central_widget.layout().setAlignment(Qt.AlignTop)
-		central_widget.layout().setContentsMargins(0, 5, 0, 0)
+		central_widget.layout().setContentsMargins(0, 0, 0, 0)
+		central_widget.layout().setSpacing(0)
 
 		self.__list_scroll_area = QScrollArea(self)
 		self.__list_scroll_area.installEventFilter(
@@ -176,8 +177,22 @@ class NodesFoundWidget(MayaGroupBox.MayaGroupBox):
 
 		central_widget = self.__list_scroll_area.widget()
 
-		for nd in self.nodesList:
-			central_widget.layout().addWidget(NodeEntryWidget(nd, central_widget))
+		for i, nd in enumerate(self.nodesList):
+			node_entry_widget = NodeEntryWidget(nd, central_widget)
+			palette = node_entry_widget.palette()
+
+			for role in [QPalette.Active, QPalette.Inactive]:
+				if i % 2 == 0:
+					palette.setBrush(role, QPalette.Window, QBrush(QColor(255, 255, 0)))
+					palette.setBrush(role, QPalette.Base, QBrush(QColor(255, 255, 0)))
+				else:
+					palette.setBrush(role, QPalette.Window, QBrush(QColor(0, 255, 255)))
+					palette.setBrush(role, QPalette.Base, QBrush(QColor(0, 255, 255)))
+
+			node_entry_widget.setPalette(palette)
+			node_entry_widget.setAutoFillBackground(True)
+
+			central_widget.layout().addWidget(node_entry_widget)
 
 	@Slot()
 	def clearNodesList(self):
@@ -192,245 +207,6 @@ class NodesFoundWidget(MayaGroupBox.MayaGroupBox):
 	nodesList = Property(list, getNodesList, setNodesList)
 	nodesNames = Property(list, getNodesNames, None)
 	nodesPaths = Property(list, getNodesPaths, None)
-
-
-class NewSpecFormWidget(QWidget):
-	__specs_types = {
-		"suffix": str,
-		"expression": str,
-		"type": list,
-		"location": list
-	}
-
-	# Signals
-	accepted = Signal(tuple)
-	rejected = Signal()
-
-	def __init__(self, *args, **kwargs):
-		super(NewSpecFormWidget, self).__init__(*args, **kwargs)
-
-		self.setLayout(QVBoxLayout(self))
-		self.layout().setContentsMargins(0, 0, 0, 0)
-		self.layout().setAlignment(Qt.AlignTop)
-
-		form_layout = QHBoxLayout(self)
-		form_layout.setContentsMargins(0, 0, 0, 0)
-		form_layout.setAlignment(Qt.AlignLeft)
-
-		self.__spec_combo_box = QComboBox(self)
-		self.__spec_combo_box.addItems(self.__specs_types.keys())
-		self.__spec_combo_box.currentTextChanged.connect(self.enableEditMode)
-
-		self.__esc_line_edit = EditableLabel.EditableLabel(self)
-		self.__esc_line_edit.displayButtons = False
-		self.__esc_line_edit.setEnabled(False)
-		self.__esc_line_edit.setVisible(False)
-		self.__esc_line_edit.changeDiscarded.connect(self.rejected.emit)
-		self.__esc_line_edit.changed[None].connect(self.acceptSpec)
-
-		self.__block_labels_list = BlockLabelsList.BlockLabelsList(Qt.Horizontal, self)
-		self.__block_labels_list.setEnabled(False)
-		self.__block_labels_list.setVisible(False)
-
-		accept_target_alias_edit_pixmap = QPixmap(
-			os.path.join(os.environ["ICONS_DIR"], "checkbox-circle-fill.png")
-		)
-		cancel_target_alias_edit_pixmap = QPixmap(
-			os.path.join(os.environ["ICONS_DIR"], "close-line.png")
-		)
-
-		self.__accept_button = ClickableLabel.ClickableLabel(self)
-		self.__accept_button.setPixmap(accept_target_alias_edit_pixmap)
-		self.__accept_button.clicked[None].connect(self.acceptSpec)
-
-		self.__cancel_button = ClickableLabel.ClickableLabel(self)
-		self.__cancel_button.setPixmap(cancel_target_alias_edit_pixmap)
-		self.__cancel_button.clicked[None].connect(self.rejected.emit)
-
-		form_layout.addWidget(self.__spec_combo_box)
-		form_layout.addWidget(self.__esc_line_edit)
-		form_layout.addWidget(self.__block_labels_list)
-		form_layout.addWidget(self.__accept_button)
-		form_layout.addWidget(self.__cancel_button)
-
-		self.layout().addLayout(form_layout)
-
-	@Slot(str)
-	def enableEditMode(self, specType):
-		if self.__specs_types[specType] is str:
-			self.__block_labels_list.setVisible(False)
-			self.__block_labels_list.setEnabled(False)
-
-			self.__esc_line_edit.setText("")
-			self.__esc_line_edit.setEnabled(True)
-			self.__esc_line_edit.setVisible(True)
-			self.__esc_line_edit.enableEditMode()
-		elif self.__specs_types[specType] is list:
-			self.__esc_line_edit.setVisible(False)
-			self.__esc_line_edit.disableEditMode()
-			self.__esc_line_edit.setEnabled(False)
-
-			self.__block_labels_list.clearLabels()
-			self.__block_labels_list.setEnabled(True)
-			self.__block_labels_list.setVisible(True)
-			self.__block_labels_list.enableAddLabelMode()
-
-	@Slot()
-	def disableEditMode(self):
-		self.__esc_line_edit.setVisible(False)
-		self.__esc_line_edit.setText("")
-		self.__esc_line_edit.setEnabled(False)
-
-		self.__block_labels_list.setVisible(False)
-		self.__block_labels_list.clearLabels()
-		self.__block_labels_list.setEnabled(False)
-
-	@Slot()
-	def acceptSpec(self):
-		spec_type = self.__spec_combo_box.currentText()
-
-		if self.__specs_types[spec_type] is str:
-			spec_value = str(self.__esc_line_edit.text)
-		else:
-			spec_value = tuple(self.__block_labels_list.labels)
-
-		self.accepted.emit((spec_type, spec_value))
-
-
-class FindSpecsWidgetBck(QWidget):
-	__specs_id = None
-	__specs = None
-
-	__controller = None
-
-	__results_box = None
-	__nodes_found_widget = None
-	__total_nodes_found_label = None
-
-	# Signals
-	searchNodes = Signal([dict], [None])
-	selectNodes = Signal(list)
-	isolateNodes = Signal(list)
-
-	def __init__(self, specs_id, specs, *args, **kwargs):
-		super(FindSpecsWidget, self).__init__(*args, **kwargs)
-
-		self.setLayout(QVBoxLayout(self))
-		self.layout().setAlignment(Qt.AlignTop)
-
-		specs_box = MayaGroupBox.MayaGroupBox("Finding Specs", self)
-		specs_box.setContentLayout(QVBoxLayout(specs_box))
-
-		self.__results_box = MayaGroupBox.MayaGroupBox("Results", self)
-		self.__results_box.setContentLayout(QVBoxLayout(self.__results_box))
-		self.__results_box.setFlat(True)
-
-		search_nodes_button = QPushButton("Find", self)
-		search_nodes_button.clicked.connect(self.emitSearchNodes)
-
-		select_all_nodes_found_button = QPushButton("Sel", self)
-		isolate_all_nodes_found_button = QPushButton("Iso", self)
-		self.__total_nodes_found_label = QLabel("0", self)
-
-		self.__nodes_found_widget = NodesFoundWidget("Matching Nodes", self)
-		self.__nodes_found_widget.setFlat(True)
-
-		# Build specifications box
-		specs_list_widget = QWidget(specs_box)
-		specs_list_widget.setLayout(QFormLayout(specs_list_widget))
-		specs_list_widget.layout().setContentsMargins(0, 0, 0, 0)
-
-		find_methods_layout = QHBoxLayout(specs_list_widget)
-		find_methods_layout.setAlignment(Qt.AlignLeft)
-		find_methods_layout.setContentsMargins(0, 0, 0, 0)
-
-		try:
-			for fm in specs["findby"]:
-				block_label = BlockLabel.BlockLabel(fm, specs_list_widget)
-				block_label.setLocked(True)
-
-				find_methods_layout.addWidget(block_label)
-		except(KeyError, TypeError, ValueError, RuntimeError):
-			pass
-
-		specs_list_widget.layout().addRow("Find by:", find_methods_layout)
-
-		for k in specs:
-			if k == "findby":
-				continue
-
-			if type(specs[k]) is list:
-				list_layout = QHBoxLayout(specs_list_widget)
-				list_layout.setAlignment(Qt.AlignLeft)
-				list_layout.setContentsMargins(0, 0, 0, 0)
-
-				for t in specs[k]:
-					block_label = BlockLabel.BlockLabel(t, specs_list_widget)
-					block_label.setLocked(True)
-					list_layout.addWidget(block_label)
-
-				specs_list_widget.layout().addRow("%s:" % k.capitalize(), list_layout)
-			else:
-				specs_list_widget.layout().addRow("%s:" % k.capitalize(), QLabel(specs[k], specs_list_widget))
-
-		specs_box.contentLayout().addWidget(specs_list_widget)
-
-		# Build results box
-		found_nodes_layout = QHBoxLayout(self.__results_box)
-		found_nodes_layout.setContentsMargins(0, 0, 0, 0)
-		found_nodes_layout.setAlignment(Qt.AlignLeft)
-
-		found_nodes_layout.addWidget(QLabel("Found:", self.__results_box))
-		found_nodes_layout.addWidget(self.__total_nodes_found_label)
-		found_nodes_layout.addWidget(select_all_nodes_found_button)
-		found_nodes_layout.addWidget(isolate_all_nodes_found_button)
-
-		self.__results_box.contentLayout().addLayout(found_nodes_layout)
-		self.__results_box.contentLayout().addWidget(self.__nodes_found_widget)
-
-		self.layout().addWidget(specs_box)
-		self.layout().addWidget(search_nodes_button)
-		self.layout().addWidget(self.__results_box)
-
-		self.__specs_id = specs_id
-		self.__specs = specs
-
-		# Connect signals
-		self.__controller = InspectionController(self)
-
-		self.searchNodes[dict].connect(self.__controller.getMatchingNodes)
-		self.selectNodes.connect(self.__controller.selectNodes)
-		self.isolateNodes.connect(self.__controller.isolateNodes)
-
-		self.__controller.matchingNodesFound.connect(self.setNodesList)
-
-	def getSpecsId(self):
-		return self.__specs_id
-
-	def getSpecs(self):
-		return self.__specs
-
-	def getNodesList(self):
-		return self.__nodes_found_widget.nodesList
-
-	@Slot()
-	def setNodesList(self, nodesList):
-		self.__total_nodes_found_label.setText(str(len(nodesList)))
-		self.__nodes_found_widget.nodesList = nodesList
-		self.__results_box.setFlat(False)
-
-	@Slot()
-	def emitSearchNodes(self):
-		self.searchNodes[dict].emit(self.specs)
-		self.searchNodes[None].emit()
-
-	@Slot()
-	def emitSelectNodes(self):
-		self.selectNodes.emit(self.__nodes_found_widget.nodesPaths)
-
-	specsId = Property(str, getSpecsId, None)
-	specs = Property(dict, getSpecs, None)
-	nodesList = Property(list, getNodesList, setNodesList)
 
 
 class FindSpecsWidget(QWidget):
@@ -486,6 +262,9 @@ class FindSpecsWidget(QWidget):
 		specs_form_layout = QGridLayout(self.__specs_box)
 		specs_form_layout.setContentsMargins(0, 0, 0, 0)
 		specs_form_layout.setAlignment(Qt.AlignVCenter)
+		specs_form_layout.setColumnStretch(0, 0)
+		specs_form_layout.setColumnStretch(1, 2)
+		specs_form_layout.setColumnStretch(2, 0)
 
 		specs_box_size_policy = QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
 		specs_box_size_policy.setHorizontalStretch(1)
@@ -505,10 +284,7 @@ class FindSpecsWidget(QWidget):
 		self.__nodes_found_widget.setFlat(True)
 
 		self.__edit_specs_button = QPushButton("Edit", self.__specs_box)
-		self.__edit_specs_button.clicked.connect(self.enableEditMode)
-
-		self.__save_specs_button = QPushButton("Save", self.__specs_box)
-		self.__save_specs_button.clicked.connect(self.disableEditMode)
+		self.__edit_specs_button.clicked.connect(self.__toggleEditSaveModes)
 
 		# Build specifications box
 		new_spec_layout = QHBoxLayout(self.__specs_box)
@@ -517,7 +293,6 @@ class FindSpecsWidget(QWidget):
 
 		new_spec_layout.addWidget(self.__add_spec_button)
 		new_spec_layout.addWidget(self.__edit_specs_button)
-		new_spec_layout.addWidget(self.__save_specs_button)
 
 		self.__specs_box.contentLayout().addLayout(new_spec_layout)
 
@@ -589,6 +364,15 @@ class FindSpecsWidget(QWidget):
 		except(RuntimeError, Exception) as exc:
 			pass
 
+	@Slot()
+	def __toggleEditSaveModes(self):
+		if self.editable is False:
+			self.editable = True
+			self.__edit_specs_button.setText("Save")
+		else:
+			self.editable = False
+			self.__edit_specs_button.setText("Edit")
+
 	def getSpecsId(self):
 		return self.__specs_id
 
@@ -639,7 +423,7 @@ class FindSpecsWidget(QWidget):
 
 		spec_type_label = QLabel("%s:" % specData.name, self.__specs_box)
 		spec_type_label.setAlignment(Qt.AlignRight)
-		spec_type_label.setSizePolicy(QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred))
+		#spec_type_label.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred))
 
 		prev_to_last_row = specs_form_layout.rowCount() - 1
 
@@ -647,6 +431,7 @@ class FindSpecsWidget(QWidget):
 			value_edit_label = EditableLabel.EditableLabel(specData.value, self.__specs_box)
 			value_edit_label.displayButtons = False
 			value_edit_label.editable = self.editable
+			value_edit_label.setValidator(QRegExpValidator(QRegExp("[a-zA-Z0-9_]*")))
 
 			specs_form_layout.addWidget(spec_type_label, prev_to_last_row, 0)
 			specs_form_layout.addWidget(value_edit_label, prev_to_last_row, 1)
@@ -655,6 +440,14 @@ class FindSpecsWidget(QWidget):
 			block_labels_list.labels = [v for v in specData.value]
 			block_labels_list.editable = self.editable
 			block_labels_list.setAlignment(Qt.AlignLeft)
+			#block_labels_list.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred))
+			block_labels_list.setValidator(QRegExpValidator(QRegExp("[a-zA-Z0-9_]*")))
+			#####################################
+			palette = block_labels_list.palette()
+			palette.setBrush(QPalette.Active, QPalette.Window, QBrush(QColor(255, 255, 0)))
+			block_labels_list.setPalette(palette)
+			block_labels_list.setAutoFillBackground(True)
+			#####################################
 
 			specs_form_layout.addWidget(spec_type_label, prev_to_last_row, 0)
 			specs_form_layout.addWidget(block_labels_list, prev_to_last_row, 1)
@@ -667,8 +460,8 @@ class FindSpecsWidget(QWidget):
 		remove_row_button.clicked[QLabel].connect(self.__removeRow)
 		remove_row_button.setPixmap(remove_row_pixmap)
 		remove_row_button.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred))
-		remove_row_button.setVisible(False)
-		remove_row_button.setEnabled(False)
+		remove_row_button.setVisible(self.editable)
+		remove_row_button.setEnabled(self.editable)
 
 		specs_form_layout.addWidget(remove_row_button, prev_to_last_row, 2)
 
@@ -687,22 +480,30 @@ class FindSpecsWidget(QWidget):
 		self.__new_spec_type_combo = QComboBox(self)
 		self.__new_spec_type_combo.addItems(self.__specs_types.keys())
 		self.__new_spec_type_combo.currentTextChanged.connect(self.enableSpecEditElements)
-		self.__new_spec_type_combo.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Maximum))
+		#self.__new_spec_type_combo.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Maximum))
 
 		self.__new_spec_line_edit = EditableLabel.EditableLabel(self)
 		self.__new_spec_line_edit.editable = True
 		self.__new_spec_line_edit.displayButtons = False
 		self.__new_spec_line_edit.setEnabled(False)
 		self.__new_spec_line_edit.setVisible(False)
+		self.__new_spec_line_edit.setValidator(QRegExpValidator(QRegExp("[a-zA-Z0-9_]*")))
 		self.__new_spec_line_edit.changeDiscarded.connect(self.disableNewSpecForm)
 		self.__new_spec_line_edit.changed[None].connect(self.__acceptSpecs)
 
 		self.__new_spec_block_labels_list = BlockLabelsList.BlockLabelsList(Qt.Horizontal, self)
 		self.__new_spec_block_labels_list.editable = True
-		self.__new_spec_block_labels_list.setAlignment(Qt.AlignLeft)
 		self.__new_spec_block_labels_list.setEnabled(False)
 		self.__new_spec_block_labels_list.setVisible(False)
-
+		self.__new_spec_block_labels_list.setAlignment(Qt.AlignLeft)
+		#self.__new_spec_block_labels_list.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred))
+		self.__new_spec_block_labels_list.setValidator(QRegExpValidator(QRegExp("[a-zA-Z0-9_]*")))
+		#####################################
+		palette = self.__new_spec_block_labels_list.palette()
+		palette.setBrush(QPalette.Active, QPalette.Window, QBrush(QColor(255, 255, 0)))
+		self.__new_spec_block_labels_list.setPalette(palette)
+		self.__new_spec_block_labels_list.setAutoFillBackground(True)
+		#####################################
 		accept_target_alias_edit_pixmap = QPixmap(
 			os.path.join(os.environ["ICONS_DIR"], "checkbox-circle-fill.png")
 		)
@@ -713,27 +514,26 @@ class FindSpecsWidget(QWidget):
 		self.__new_spec_accept_button = ClickableLabel.ClickableLabel(self)
 		self.__new_spec_accept_button.setPixmap(accept_target_alias_edit_pixmap)
 		self.__new_spec_accept_button.clicked[None].connect(self.__acceptSpecs)
-		self.__new_spec_accept_button.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred))
+		self.__new_spec_accept_button.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum))
 
 		self.__new_spec_cancel_button = ClickableLabel.ClickableLabel(self)
 		self.__new_spec_cancel_button.setPixmap(cancel_target_alias_edit_pixmap)
 		self.__new_spec_cancel_button.clicked[None].connect(self.disableNewSpecForm)
-		self.__new_spec_cancel_button.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred))
+		self.__new_spec_cancel_button.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum))
 
 		self.__new_spec_elements_widget = QWidget(self.__specs_box)
-		self.__new_spec_elements_widget.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred))
+		#self.__new_spec_elements_widget.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum))
 		self.__new_spec_elements_widget.setLayout(QHBoxLayout(self.__new_spec_elements_widget))
 		self.__new_spec_elements_widget.layout().setContentsMargins(0, 0, 0, 0)
-
-		self.__new_spec_buttons_widget = QWidget(self.__specs_box)
-		self.__new_spec_buttons_widget.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred))
-		self.__new_spec_buttons_widget.setLayout(QHBoxLayout(self.__new_spec_buttons_widget))
-		self.__new_spec_buttons_widget.layout().setContentsMargins(0, 0, 0, 0)
-
 		self.__new_spec_elements_widget.layout().addWidget(self.__new_spec_line_edit)
 		self.__new_spec_elements_widget.layout().addWidget(self.__new_spec_block_labels_list)
 
+		self.__new_spec_buttons_widget = QWidget(self.__specs_box)
+		self.__new_spec_buttons_widget.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum))
+		self.__new_spec_buttons_widget.setLayout(QHBoxLayout(self.__new_spec_buttons_widget))
+		self.__new_spec_buttons_widget.layout().setContentsMargins(0, 0, 0, 0)
 		self.__new_spec_buttons_widget.layout().setAlignment(Qt.AlignRight)
+
 		self.__new_spec_buttons_widget.layout().addWidget(self.__new_spec_accept_button)
 		self.__new_spec_buttons_widget.layout().addWidget(self.__new_spec_cancel_button)
 
@@ -741,7 +541,7 @@ class FindSpecsWidget(QWidget):
 
 		form_layout.addWidget(self.__new_spec_type_combo, last_row, 0)
 		form_layout.addWidget(self.__new_spec_elements_widget, last_row, 1)
-		form_layout.addWidget(self.__new_spec_buttons_widget, last_row, 3)
+		form_layout.addWidget(self.__new_spec_buttons_widget, last_row, 2)
 
 		self.__specs_box.resize(form_layout.sizeHint())
 
@@ -835,14 +635,6 @@ class FindSpecsWidget(QWidget):
 		self.__new_spec_block_labels_list.setVisible(False)
 		self.__new_spec_block_labels_list.clearLabels()
 		self.__new_spec_block_labels_list.setEnabled(False)
-
-	@Slot()
-	def enableEditMode(self):
-		self.editable = True
-
-	@Slot()
-	def disableEditMode(self):
-		self.editable = False
 
 	@Slot()
 	def setNodesList(self, nodesList):
