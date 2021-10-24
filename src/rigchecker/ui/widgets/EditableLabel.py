@@ -1,10 +1,35 @@
 import os
 
-from PySide2.QtWidgets import QWidget, QHBoxLayout
-from PySide2.QtCore import Signal, Slot, Property, Qt
-from PySide2.QtGui import QPixmap
+from PySide2.QtWidgets import QWidget, QHBoxLayout, QStyle
+from PySide2.QtCore import Signal, Slot, Property, Qt, QObject
+from PySide2.QtGui import QPixmap, QPen, QColor
 
 from . import ClickableLabel, EscapableLineEdit
+
+
+class RoundedFrameStyle(QStyle):
+    green_pen = None
+    __style = None
+    
+    def __init__(self, style, *args, **kwargs):
+        super(RoundedFrameStyle, self).__init__(*args, **kwargs)
+        self.__style = style
+
+    def __getattribute__(self, item):
+        return self.__style.__getattribute__(item)
+
+    def __getattr__(self, item):
+        return self.__style.__getattr__(item)
+
+    def drawPrimitive(self, element, option, painter, widget):
+        self.green_pen = QPen(QColor("green"))
+        self.green_pen.setWidth(4)
+
+        if element == QStyle.PE_FrameLineEdit:
+            painter.setPen(self.green_pen)
+            painter.drawRoundedRect(widget.rect(), 10, 10)
+        else:
+            super(RoundedFrameStyle, self).drawPrimitive(element, option, painter, widget)
 
 
 class EditableLabel(QWidget):
@@ -23,6 +48,8 @@ class EditableLabel(QWidget):
 
     def __init__(self, text, *args, **kwargs):
         super(EditableLabel, self).__init__(*args, **kwargs)
+
+        self.setStyle(RoundedFrameStyle(self.style()))
 
         main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(0.0, 0.0, 0.0, 0.0)
@@ -150,7 +177,10 @@ class EditableLabel(QWidget):
         self.changed[None].emit()
 
     def getText(self):
-        return self.label.text()
+        if self.editModeOn is False:
+            return self.label.text()
+        else:
+            return self.label_edit.text()
 
     def setText(self, text):
         self.label.setText(text)

@@ -1,7 +1,7 @@
 from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QSizePolicy
 from PySide2.QtCore import Signal, Slot, Property, Qt
 
-from . import BlockLabel, ClickableLabel, EscapableLineEdit
+from . import BlockLabel, ClickableLabel, EscapableLineEdit, FlowLayout
 reload(BlockLabel)
 
 
@@ -18,6 +18,7 @@ class BlockLabelsList(QWidget):
 
         if arrange == Qt.Horizontal:
             self.setLayout(QHBoxLayout(self))
+            #self.setLayout(FlowLayout.FlowLayout(self))
             size_policy = QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Preferred)
             size_policy.setHorizontalStretch(1)
         else:
@@ -25,6 +26,7 @@ class BlockLabelsList(QWidget):
             size_policy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.MinimumExpanding)
             size_policy.setHorizontalStretch(1)
 
+        self.layout().setContentsMargins(0, 0, 0, 0)
         self.setSizePolicy(size_policy)
 
         self.__add_button = ClickableLabel.ClickableLabel("Add", self)
@@ -116,6 +118,9 @@ class BlockLabelsList(QWidget):
 
     def setArrangement(self, arrange):
         pass
+
+    def setValidator(self, validator):
+        self.__add_line_edit.setValidator(validator)
 
     labels = Property(list, getLabels, setLabels)
     #blockLabels = Property(list, blockLabels, None)
