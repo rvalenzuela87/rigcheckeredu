@@ -1,12 +1,19 @@
 from PySide2.QtWidgets import QWidget, QLabel, QHBoxLayout, QVBoxLayout
-from PySide2.QtCore import Qt, Signal, Slot, Property
-from PySide2.QtGui import QPalette, QBrush, QColor
+from PySide2.QtCore import Qt, Signal, Slot, Property, QRectF
+from PySide2.QtGui import QPalette, QBrush, QColor, QPainter, QPainterPath, QPen
 
 from . import BlockLabel
 reload(BlockLabel)
 
 
 class MayaGroupBoxTitle(QWidget):
+    __borderSize = 1
+    __outlineColor = None
+    __fillColor = None
+    __textColor = None
+
+    __title_label = None
+
     clicked = Signal()
     doubleClicked = Signal()
 
@@ -17,21 +24,55 @@ class MayaGroupBoxTitle(QWidget):
         self.layout().setAlignment(Qt.AlignLeft)
         self.layout().setContentsMargins(10, 5, 10, 5)
 
-        self.layout().addWidget(QLabel(title, self))
+        self.__outlineColor = QColor(100, 100, 100)
+        self.__fillColor = QColor(93, 93, 93)
 
-        palette = self.palette()
+        self.__title_label = QLabel(title, self)
 
-        for role in [QPalette.Active, QPalette.Inactive]:
-            palette.setBrush(role, QPalette.Window, QBrush(QColor(93, 93, 93)))
-            palette.setBrush(role, QPalette.Base, QBrush(QColor(93, 93, 93)))
-            palette.setBrush(role, QPalette.Text, QBrush(QColor(127, 127, 127)))
+        self.layout().addWidget(self.__title_label)
 
-        self.setPalette(palette)
+        '''palette = self.palette()
+
+        palette.setBrush(QPalette.Active, QPalette.Window, QBrush(self.fillColor))
+        palette.setBrush(QPalette.Active, QPalette.Base, QBrush(self.fillColor))
+        palette.setBrush(QPalette.Active, QPalette.Text, QBrush(QColor(127, 127, 127)))
+
+        self.setPalette(palette)'''
         self.setAutoFillBackground(True)
         self.setCursor(Qt.PointingHandCursor)
 
     def setAlignment(self, align):
         self.layout().setAlignment(align)
+
+    def getTitle(self):
+        return self.__title_label.text()
+
+    def getFillColor(self):
+        return self.__fillColor
+
+    def getOutlineColor(self):
+        return self.__outlineColor
+
+    def getTitleColor(self):
+        return self.__textColor
+
+    def getBorderSize(self):
+        return self.__borderSize
+
+    def setTitle(self, title):
+        self.__title_label.setText(title)
+
+    def setFillColor(self, fillColor):
+        self.__fillColor = fillColor
+
+    def setOutlineColor(self, outlineColor):
+        self.__outlineColor = outlineColor
+
+    def setTitleColor(self, textColor):
+        self.__textColor = textColor
+
+    def setBorderSize(self, borderSize):
+        self.__borderSize = borderSize
 
     @Slot()
     def click(self):
@@ -49,6 +90,37 @@ class MayaGroupBoxTitle(QWidget):
 
     def mouseDoubleClickEvent(self, event):
         super(MayaGroupBoxTitle, self).mouseDoubleClickEvent(event)
+
+    def paintEvent(self, event):
+        # Create the painter
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        # Create the path
+        path = QPainterPath()
+        # Set painter colors to given values.
+        pen = QPen(self.outlineColor, self.borderSize)
+        painter.setPen(pen)
+        brush = QBrush(self.fillColor)
+        painter.setBrush(brush)
+
+        rect = QRectF(event.rect())
+        # Slightly shrink dimensions to account for borderSize.
+        rect.adjust(self.borderSize / 2, self.borderSize / 2, -self.borderSize / 2, -self.borderSize / 2)
+
+        # Add the rect to path.
+        path.addRoundedRect(rect, 5, 5)
+        painter.setClipPath(path)
+
+        # Fill shape, draw the border and center the text.
+        painter.fillPath(path, painter.brush())
+        painter.strokePath(path, painter.pen())
+        painter.drawText(rect, Qt.AlignCenter, self.title)
+
+    title = Property(str, getTitle, setTitle)
+    fillColor = Property(QColor, getFillColor, setFillColor)
+    outlineColor = Property(QColor, getOutlineColor, setOutlineColor)
+    textColor = Property(QColor, getTitleColor, setTitleColor)
+    borderSize = Property(int, getBorderSize, setBorderSize)
 
 
 class MayaGroupBox(QWidget):
@@ -90,10 +162,10 @@ class MayaGroupBox(QWidget):
         self.__title_widget.setAlignment(align)
 
     def getTitle(self):
-        return self.__title_widget.text()
+        return self.__title_widget.title
 
     def setTitle(self, title):
-        self.__title_widget.setText(title)
+        self.__title_widget.title = title
 
     def isFlat(self):
         return not self.__content_area_widget.isVisible()
