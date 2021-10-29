@@ -1,4 +1,6 @@
-from PySide2.QtWidgets import QWidget, QPushButton, QTreeWidget, QTreeWidgetItem, QScrollArea, QLabel, QVBoxLayout
+import os
+
+from PySide2.QtWidgets import QWidget, QPushButton, QTreeWidget, QTreeWidgetItem, QScrollArea, QLabel, QSplitter, QHeaderView, QVBoxLayout, QHBoxLayout
 from PySide2.QtCore import Qt, Slot, Signal, Property, QObject, QSize
 from PySide2.QtGui import QPalette, QColor, QIcon, QPixmap, QPainter, QPainterPath
 
@@ -6,23 +8,23 @@ from .widgets import ResizeScrollAreaWidgetEventFilter, MayaGroupBox, ClickableL
 reload(MayaGroupBox)
 
 
-class CirclePixmapBuilder(QObject):
-	__width = 50
-	__height = 50
-	__radius = 25
-	__antialiasing = True
-	__fillColor = None
+class CirclePixmapBuilder(object):
+	width = 50
+	height = 50
+	radius = 25
+	antialiasing = True
+	fillColor = None
 	__target = None
 
 	def __init__(self, *args, **kwargs):
-		super(CirclePixmapBuilder, self).__init__(*args, **kwargs)
+		super(CirclePixmapBuilder, self).__init__()
 
 	def buildPixmap(self):
 		circle_size = QSize(self.width, self.height)
 		self.__target = QPixmap(circle_size)
 		self.__target.fill(Qt.transparent)
 
-		p = QPixmap().scaled(self.width, self.height, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+		p = QPixmap(circle_size).scaled(self.width, self.height, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
 		p.fill(self.fillColor)
 
 		painter = QPainter(self.__target)
@@ -41,40 +43,34 @@ class CirclePixmapBuilder(QObject):
 		return self.__target
 
 	def getWidth(self):
-		return self.__width
+		return self.width
 
 	def getHeight(self):
-		return self.__height
+		return self.height
 
 	def getRadius(self):
-		return self.__radius
+		return self.radius
 
 	def getAntialiasing(self):
-		return self.__antialiasing
+		return self.antialiasing
 
 	def getFillColor(self):
-		return self.__fillColor
+		return self.fillColor
 
 	def setWidth(self, width):
-		self.__width = width
+		self.width = width
 
 	def setHeight(self, height):
-		self.__height = height
+		self.height = height
 
 	def setRadius(self, radius):
-		self.__radius = radius
+		self.radius = radius
 
 	def setAntialiasing(self, anti):
-		self.__antialiasing = anti
+		self.antialiasing = anti
 
 	def setFillColor(self, fillColor):
-		self.__fillColor = fillColor
-
-	width = Property(int, getWidth, setWidth)
-	height = Property(int, getHeight, setHeight)
-	radius = Property(int, getRadius, setRadius)
-	antialiasing = Property(bool, getAntialiasing, setAntialiasing)
-	fillColor = Property(QColor, getFillColor, setFillColor)
+		self.fillColor = fillColor
 
 
 class NodesTotalClickableLabel(ClickableLabel.ClickableLabel):
@@ -95,6 +91,7 @@ class NodesTotalClickableLabel(ClickableLabel.ClickableLabel):
 
 	@Slot()
 	def __emitSelectNodes(self):
+		print("Selecting nodes...")
 		self.selectNodes.emit(self.nodesPaths)
 
 	def getNodesPaths(self):
@@ -104,6 +101,66 @@ class NodesTotalClickableLabel(ClickableLabel.ClickableLabel):
 		self.__nodes_paths = nodesList
 
 	nodesPaths = Property(list, getNodesPaths, setNodesPaths)
+
+
+class NodeValidationDetails(MayaGroupBox.MayaGroupBox):
+	__node_path = None
+	__validations_list = None
+
+	__select_node_button = None
+	__update_button = None
+
+	#Signals
+	select = Signal(str)
+	update = Signal(str)
+
+	def __init__(self, node_path, title, *args, **kwargs):
+		super(NodeValidationDetails, self).__init__(title, *args, **kwargs)
+
+		self.setContentLayout(QVBoxLayout(self))
+
+		self.__validations_list = []
+
+		self.__select_node_button = QPushButton("Select", self)
+		self.__select_node_button.clicked.connect(self.__emitSelectNode)
+
+		self.__update_button = QPushButton("Update", self)
+		self.__update_button.clicked.connect(self.__emitUpdateNode)
+
+		circle_builder = CirclePixmapBuilder()
+		circle_builder.fillColor = QColor("red")
+
+		for i in xrange(4):
+			status_label = QLabel(self)
+			status_label.setMinimumSize(QSize(circle_builder.width, circle_builder.height))
+			status_label.setMaximumSize(QSize(circle_builder.width, circle_builder.height))
+			status_label.setPixmap(circle_builder.buildPixmap())
+
+			validation_label = QLabel("Validation %i" % (i + 1), self)
+
+			validation_layout = QHBoxLayout(self)
+			validation_layout.setAlignment(Qt.AlignLeft)
+			validation_layout.addWidget(status_label)
+			validation_layout.addWidget(validation_label)
+
+			self.contentLayout().insertLayout(0, validation_layout)
+
+		self.contentLayout().addWidget(self.__select_node_button)
+		self.contentLayout().addWidget(self.__update_button)
+
+	def __emitUpdateNode(self):
+		self.update.emit(self.nodePath)
+
+	def __emitSelectNode(self):
+		self.select.emit(self.nodePath)
+
+	def getNodePath(self):
+		return self.__node_path
+
+	def setNodePath(self, path):
+		self.__node_path = path
+
+	nodePath = Property(str, getNodePath, setNodePath)
 
 
 class ValidationsView(QWidget):
@@ -131,32 +188,94 @@ class ValidationsView(QWidget):
 		# Validations summary box construction
 		self.__validations_summary_box = MayaGroupBox.MayaGroupBox("Validations Summary", center_widget)
 		self.__validations_summary_box.setContentLayout(QVBoxLayout(self.__validations_summary_box))
+		self.__validations_summary_box.contentLayout().setAlignment(Qt.AlignTop)
 
 		self.__validation_summary_tree = QTreeWidget(self.__validations_summary_box)
+		self.__validation_summary_tree.setHeaderLabels(["Validation", "", "", "Total"])
 		self.__validation_summary_tree.setColumnCount(4)
+		self.__validation_summary_tree.setAlternatingRowColors(True)
+
+		validation_summary_tree_header = self.__validation_summary_tree.header()
+		validation_summary_tree_header.setSectionResizeMode(0, QHeaderView.Stretch)
+		validation_summary_tree_header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+		validation_summary_tree_header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+		validation_summary_tree_header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+		validation_summary_tree_header.setStretchLastSection(False)
 
 		circle_builder = CirclePixmapBuilder(self)
 		circle_builder.fillColor = QColor("green")
 
-		self.success_pixmap = circle_builder.buildPixmap()
-		self.success_column_icon = QIcon(self.success_pixmap)
+		self.success_column_icon = QIcon()
+		self.success_column_icon.addPixmap(circle_builder.buildPixmap(), QIcon.Normal, QIcon.On)
 
-		'''circle_builder.fillColor = QColor("red")
+		circle_builder.fillColor = QColor("red")
 
-		self.failed_pixmap = circle_builder.buildPixmap()
-		self.failed_column_icon = QIcon(self.failed_pixmap)'''
+		self.failed_column_icon = QIcon()
+		self.failed_column_icon.addPixmap(circle_builder.buildPixmap(), QIcon.Normal, QIcon.On)
 
-		validation_summary_tree_header_item = QTreeWidgetItem(self.__validation_summary_tree)
-		validation_summary_tree_header_item.setText(0, "Validation")
+		validation_summary_tree_header_item = self.__validation_summary_tree.headerItem()
+
+		'''success_label = QLabel("S", self)
+		failed_label = QLabel("F", self)
+
+		self.__validation_summary_tree.setItemWidget(validation_summary_tree_header_item, 1, success_label)
+		self.__validation_summary_tree.setItemWidget(validation_summary_tree_header_item, 2, failed_label)'''
 		validation_summary_tree_header_item.setIcon(1, self.success_column_icon)
-		validation_summary_tree_header_item.setText(2, "Failed")
-		validation_summary_tree_header_item.setText(3, "Total")
+		validation_summary_tree_header_item.setIcon(2, self.failed_column_icon)
 
-		self.__validation_summary_tree.setHeaderItem(validation_summary_tree_header_item)
+		validation_summary_tree_header_item.setTextAlignment(0, Qt.AlignLeft)
+		validation_summary_tree_header_item.setTextAlignment(1, Qt.AlignRight)
+		validation_summary_tree_header_item.setTextAlignment(2, Qt.AlignRight)
+		validation_summary_tree_header_item.setTextAlignment(3, Qt.AlignRight)
+
+		for i in xrange(4):
+			test_item = QTreeWidgetItem(self.__validation_summary_tree)
+			test_item.setText(0, "Validation %i name" % (i + 1))
+			test_item.setText(3, "97")
+
+			test_item.setTextAlignment(0, Qt.AlignLeft)
+			test_item.setTextAlignment(1, Qt.AlignRight)
+			test_item.setTextAlignment(2, Qt.AlignRight)
+			test_item.setTextAlignment(3, Qt.AlignRight)
+
+			success_label = NodesTotalClickableLabel(None, "10", self)
+			success_label.setAlignment(Qt.AlignRight)
+
+			failed_label = NodesTotalClickableLabel(None, "87", self)
+			failed_label.setAlignment(Qt.AlignRight)
+
+			self.__validation_summary_tree.addTopLevelItem(test_item)
+			self.__validation_summary_tree.setItemWidget(test_item, 1, success_label)
+			self.__validation_summary_tree.setItemWidget(test_item, 2, failed_label)
+
+		#self.__validation_summary_tree.setHeaderItem(validation_summary_tree_header_item)
 		self.__validations_summary_box.contentLayout().addWidget(self.__validation_summary_tree)
 
 		# Validations details box construction
 		self.__validations_details_box = MayaGroupBox.MayaGroupBox("Validations Details", center_widget)
+		self.__validations_details_box.setContentLayout(QVBoxLayout(self.__validations_details_box))
+
+		specs_tree_widget = QTreeWidget(self.__validations_details_box)
+		specs_tree_widget.setHeaderLabels(["Specifications"])
+
+		nodes_list_widget = QWidget(self.__validations_details_box)
+		nodes_list_widget.setLayout(QVBoxLayout(nodes_list_widget))
+		nodes_list_widget.layout().setAlignment(Qt.AlignTop)
+
+		for i in xrange(3):
+			node_details = NodeValidationDetails("", "Node_0%i" % (i + 1), nodes_list_widget)
+			nodes_list_widget.layout().addWidget(node_details)
+
+		for s in ("Controls", "Joints", "Geo"):
+			specs_tree_widget.addTopLevelItem(QTreeWidgetItem(specs_tree_widget, [s]))
+
+		validations_splitter = QSplitter(self.__validations_details_box)
+		validations_splitter.setOrientation(Qt.Horizontal)
+
+		validations_splitter.addWidget(specs_tree_widget)
+		validations_splitter.addWidget(nodes_list_widget)
+
+		self.__validations_details_box.contentLayout().addWidget(validations_splitter)
 
 		center_widget.layout().addWidget(self.__validations_summary_box)
 		center_widget.layout().addWidget(self.__validations_details_box)
