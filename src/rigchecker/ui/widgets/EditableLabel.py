@@ -49,7 +49,7 @@ class EditableLabel(QWidget):
     def __init__(self, text, *args, **kwargs):
         super(EditableLabel, self).__init__(*args, **kwargs)
 
-        self.setStyle(RoundedFrameStyle(self.style()))
+        #self.setStyle(RoundedFrameStyle(self.style()))
 
         main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(0.0, 0.0, 0.0, 0.0)
@@ -63,15 +63,15 @@ class EditableLabel(QWidget):
             os.path.join(os.environ["ICONS_DIR"], "close-line.png")
         )
 
-        self.label = ClickableLabel.ClickableLabel(self)
+        self.label = ClickableLabel.ClickableLabel("", self)
         self.label.underline = self.__editable
 
         self.label_edit = EscapableLineEdit.EscapableLineEdit(self)
 
-        self.accept_button = ClickableLabel.ClickableLabel(self)
+        self.accept_button = ClickableLabel.ClickableLabel("", self)
         self.accept_button.setPixmap(accept_target_alias_edit_pixmap)
 
-        self.cancel_button = ClickableLabel.ClickableLabel(self)
+        self.cancel_button = ClickableLabel.ClickableLabel("", self)
         self.cancel_button.setPixmap(cancel_target_alias_edit_pixmap)
 
         try:

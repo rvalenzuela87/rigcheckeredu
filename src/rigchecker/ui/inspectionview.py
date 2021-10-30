@@ -3,13 +3,12 @@ import random
 from collections import namedtuple
 
 from PySide2.QtWidgets import QWidget, QScrollArea, QPushButton, QLabel, QGroupBox, QTreeWidget, QTreeWidgetItem, QSplitter, QMessageBox, QComboBox, QVBoxLayout, QHBoxLayout, QGridLayout, QFormLayout, QSizePolicy
-from PySide2.QtCore import Qt, Property, Slot, Signal, QObject, QRegExp
+from PySide2.QtCore import Qt, Property, Slot, Signal, QObject, QRegExp, QSize
 from PySide2.QtGui import QPixmap, QRegExpValidator, QPalette, QBrush, QColor
 
 from .widgets import ResizeScrollAreaWidgetEventFilter, MayaGroupBox, BlockLabel, BlockLabelsList
 from .widgets import ClickableLabel, EditableLabel
-reload(EditableLabel)
-reload(BlockLabelsList)
+reload(MayaGroupBox)
 
 
 NodeData = namedtuple("NodeData", ["name", "path"])
@@ -250,6 +249,11 @@ class FindSpecsWidget(QWidget):
 
 		self.setLayout(QVBoxLayout(self))
 		self.layout().setAlignment(Qt.AlignTop)
+
+		size_policy = QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Preferred)
+		size_policy.setHorizontalStretch(1.0)
+
+		self.setSizePolicy(size_policy)
 
 		self.__add_spec_button = ClickableLabel.ClickableLabel("New Spec", self)
 		self.__add_spec_button.clicked[None].connect(self.enableNewSpecForm)
@@ -743,3 +747,5 @@ class InspectionView(QWidget):
 			pass
 		else:
 			self.__dynamic_scroll_area_widget.setWidget(specs_widget)
+			rect = self.__dynamic_scroll_area_widget.contentsRect()
+			specs_widget.resize(QSize(rect.width(), rect.height()))

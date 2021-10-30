@@ -1,13 +1,12 @@
 from PySide2.QtWidgets import QWidget, QLabel, QHBoxLayout, QVBoxLayout
-from PySide2.QtCore import Qt, Signal, Slot, Property, QRectF
-from PySide2.QtGui import QPalette, QBrush, QColor, QPainter, QPainterPath, QPen
+from PySide2.QtCore import Qt, Signal, Slot, Property, QRectF, QSize, QRect, QMargins
+from PySide2.QtGui import QPalette, QBrush, QColor, QPainter, QPainterPath, QPen, QFontMetrics
 
 from . import BlockLabel
-reload(BlockLabel)
 
 
 class RoundedBox(QWidget):
-    __borderSize = 1
+    __borderSize = 1.0
     __outlineColor = None
     __fillColor = None
     __textColor = None
@@ -44,7 +43,10 @@ class RoundedBox(QWidget):
     def setBorderSize(self, borderSize):
         self.__borderSize = borderSize
 
-    def paintEventBck(self, event):
+    def paintEvent(self, event):
+        if self.contentsRect().contains(event.rect(), True):
+            return super(RoundedBox, self).paintEvent(event)
+
         # Create the painter
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
@@ -58,7 +60,7 @@ class RoundedBox(QWidget):
 
         rect = QRectF(event.rect())
         # Slightly shrink dimensions to account for borderSize.
-        rect.adjust(self.borderSize / 2, self.borderSize / 2, -self.borderSize / 2, -self.borderSize / 2)
+        rect.adjust(self.borderSize * 0.5, self.borderSize * 0.5, -self.borderSize * 0.5, -self.borderSize * 0.5)
 
         # Add the rect to path.
         path.addRoundedRect(rect, 5, 5)
@@ -154,7 +156,7 @@ class MayaGroupBoxContent(RoundedBox):
         self.setAutoFillBackground(True)
 
 
-class MayaGroupBox(QWidget):
+class MayaGroupBoxBck(QWidget):
     __title_widget = None
     __content_area_widget = None
 
@@ -212,4 +214,209 @@ class MayaGroupBox(QWidget):
 
     title = Property(str, getTitle, setTitle)
     flat = Property(bool, isFlat, setFlat)
+
+
+class MayaGroupBox(QWidget):
+    __title = ""
+    __flat = True
+    __borderSize = 1.0
+    __borderRadius = 5
+    __outlineColor = None
+    __fillColor = None
+    __textColor = None
+    __antiAliasing = True
+
+    def __init__(self, title, *args, **kwargs):
+        super(MayaGroupBox, self).__init__(*args, **kwargs)
+
+        self.__title = title
+        self.__outlineColor = QColor(100, 100, 100)
+        self.__outlineColor = QColor("red")
+        self.__fillColor = QColor(72, 72, 72)
+        self.__fillColor = QColor("transparent")
+
+        #self.setAutoFillBackground(True)
+
+        self.setContentsMargins(QMargins(0, 0, 0, 0))
+
+    def __calcTitleHeight(self):
+        title_height = 5.0 + QFontMetrics(self.font()).boundingRect(self.title).height() + 5.0
+        print("Title height: {}".format(title_height))
+        return title_height
+
+    def contentLayout(self):
+        return self.layout()
+
+    def setContentLayout(self, layout):
+        self.setLayout(layout)
+
+    def setAlignment(self, align):
+        pass
+
+    def getTitle(self):
+        return self.__title
+
+    def setTitle(self, title):
+        self.__title = title
+
+    def isFlat(self):
+        return self.__flat
+
+    def setFlat(self, flat):
+        self.__flat = flat
+
+    def getFillColor(self):
+        return self.__fillColor
+
+    def getOutlineColor(self):
+        return self.__outlineColor
+
+    def getTextColor(self):
+        return self.__textColor
+
+    def getBorderSize(self):
+        return self.__borderSize
+
+    def getBorderRadius(self):
+        return self.__borderRadius
+
+    def isAntiAliased(self):
+        return self.__antiAliasing
+
+    def setFillColor(self, fillColor):
+        self.__fillColor = fillColor
+
+    def setOutlineColor(self, outlineColor):
+        self.__outlineColor = outlineColor
+
+    def setTextColor(self, textColor):
+        self.__textColor = textColor
+
+    def setBorderSize(self, borderSize):
+        self.__borderSize = borderSize
+
+    def setBorderRadius(self, radius):
+        self.__borderRadius = radius
+
+    def setAntiAliasing(self, antiAlias):
+        self.__antiAliasing = antiAlias
+
+    @Slot()
+    def toggleContent(self):
+        pass
+
+    def paintEvent(self, event):
+        print("From paint event")
+        if self.contentsRect().contains(event.rect(), True):
+            #return super(MayaGroupBox, self).paintEvent(event)
+            pass
+
+        # Assume the widget needs to repaint itself and not only a region inside it
+
+        # Start painting the title section
+        title_rect = QRectF(event.rect())
+        title_rect.setHeight(self.__calcTitleHeight())
+
+        contents_rect = QRectF(event.rect())
+
+        # Slightly shrink dimensions to account for borderSize if anti aliasing is set to false
+        if self.antiAlias is False:
+            left_adjust = (self.borderSize - (self.borderSize % 2)) / 2
+            right_adjust = (left_adjust + (self.borderSize % 2)) * -1
+
+            title_rect.adjust(left_adjust, left_adjust, right_adjust, right_adjust)
+            contents_rect.adjust(left_adjust, left_adjust, right_adjust, right_adjust)
+
+        # Create the path
+        path = QPainterPath()
+        path.addRoundedRect(title_rect, self.borderRadius, self.borderRadius)
+
+        # Set painter colors to given values.
+        pen = QPen(self.outlineColor, self.borderSize)
+        brush = QBrush(self.fillColor)
+
+        # Create the painter
+        painter = QPainter(self)
+
+        if self.antiAlias is True:
+            painter.setRenderHint(QPainter.Antialiasing)
+
+        painter.setPen(pen)
+        painter.setBrush(brush)
+        painter.setClipPath(path)
+
+        # Fill shape, draw the border and center the text.
+        painter.fillPath(path, painter.brush())
+        painter.strokePath(path, painter.pen())
+        painter.drawText(title_rect, Qt.AlignCenter, self.title)
+
+        # Start painting the contents border
+
+        border_path = QPainterPath()
+        border_path.addRoundedRect(contents_rect, self.borderRadius, self.borderRadius)
+
+        border_pen = QPen(self.outlineColor, self.borderSize)
+
+        border_painter = QPainter(self)
+
+        if self.antiAlias is True:
+            border_painter.setRenderHint(QPainter.Antialiasing)
+
+        border_painter.setPen(border_pen)
+        border_painter.setClipPath(border_path)
+
+        border_painter.strokePath(border_path, border_painter.pen())
+
+    def sizeHint(self):
+        size_hint = super(MayaGroupBox, self).sizeHint()
+        title_height = self.__calcTitleHeight()
+        #contents_rect = self.layout().contentsRect()
+        #layout_margins = self.layout().contentsMargins()
+
+        return QSize(size_hint.width(), (title_height + size_hint.height()))
+
+    def minimumSize(self):
+        min_size = super(MayaGroupBox, self).minimumSize()
+
+        return QSize(min_size.width(), (self.__calcTitleHeight() + min_size.height()))
+
+    def contentsMargins(self):
+        return super(MayaGroupBox, self).contentsMargins()
+        margins = super(MayaGroupBox, self).contentsMargins()
+        margins.setTop(margins.top() + self.__calcTitleHeight())
+
+        print("Contents margins: {}".format(margins))
+        return margins
+
+    def setContentsMargins(self, margins):
+        margins.setTop(margins.top() + self.__calcTitleHeight())
+
+        super(MayaGroupBox, self).setContentsMargins(margins)
+
+    def contentsRect(self):
+        return super(MayaGroupBox, self).contentsRect()
+        cont_rect = super(MayaGroupBox, self).contentsRect()
+        print("Prev rect: {}".format(cont_rect))
+        #cont_rect.moveTop(self.__calcTitleHeight())
+        #cont_rect.setHeight(cont_rect.height() + self.__calcTitleHeight())
+        cont_rect.adjust(0, self.__calcTitleHeight(), 0, 0)
+        print("New rect: {}".format(cont_rect))
+
+        return cont_rect
+
+    def geometry(self):
+        print("From geo")
+        geo = super(MayaGroupBox, self).geometry()
+
+        return geo
+
+    title = Property(str, getTitle, setTitle)
+    flat = Property(bool, isFlat, setFlat)
+
+    textColor = Property(QColor, getTextColor, setTextColor)
+    fillColor = Property(QColor, getFillColor, setFillColor)
+    outlineColor = Property(QColor, getOutlineColor, setOutlineColor)
+    borderSize = Property(int, getBorderSize, setBorderSize)
+    borderRadius = Property(int, getBorderRadius, setBorderRadius)
+    antiAlias = Property(bool, isAntiAliased, setAntiAliasing)
 
