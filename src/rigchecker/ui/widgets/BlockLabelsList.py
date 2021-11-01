@@ -16,7 +16,7 @@ class BlockLabelsList(QWidget):
     def __init__(self, arrange, *args, **kwargs):
         super(BlockLabelsList, self).__init__(*args, **kwargs)
 
-        if arrange == Qt.Horizontal:
+        '''if arrange == Qt.Horizontal:
             self.setLayout(QHBoxLayout(self))
             #self.setLayout(FlowLayout.FlowLayout(self))
             size_policy = QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Preferred)
@@ -24,10 +24,15 @@ class BlockLabelsList(QWidget):
         else:
             self.setLayout(QVBoxLayout(self))
             size_policy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.MinimumExpanding)
-            size_policy.setHorizontalStretch(1)
+            size_policy.setHorizontalStretch(1)'''
 
+        size_policy = QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Preferred)
+        size_policy.setHorizontalStretch(1)
+
+        self.setLayout(FlowLayout.FlowLayout(self))
         self.layout().setContentsMargins(0, 0, 0, 0)
-        self.setSizePolicy(size_policy)
+        self.layout().setSpacing(5)
+        #self.setSizePolicy(size_policy)
 
         self.__add_button = ClickableLabel.ClickableLabel("Add", self)
 
@@ -59,6 +64,7 @@ class BlockLabelsList(QWidget):
         block_label.setSizePolicy(block_label_size)
 
         self.layout().insertWidget(0, block_label)
+        #self.layout().addWidget(block_label)
         self.__add_line_edit.setText("")
 
     @Slot()

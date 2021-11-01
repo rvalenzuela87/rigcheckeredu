@@ -2,13 +2,13 @@ import os
 import random
 from collections import namedtuple
 
-from PySide2.QtWidgets import QWidget, QScrollArea, QPushButton, QLabel, QGroupBox, QTreeWidget, QTreeWidgetItem, QSplitter, QMessageBox, QComboBox, QVBoxLayout, QHBoxLayout, QGridLayout, QFormLayout, QSizePolicy
+from PySide2.QtWidgets import QWidget, QScrollArea, QPushButton, QLabel, QTreeWidget, QTreeWidgetItem, QSplitter, QMessageBox, QComboBox, QVBoxLayout, QHBoxLayout, QGridLayout, QFormLayout, QSizePolicy
 from PySide2.QtCore import Qt, Property, Slot, Signal, QObject, QRegExp, QSize
 from PySide2.QtGui import QPixmap, QRegExpValidator, QPalette, QBrush, QColor
 
-from .widgets import ResizeScrollAreaWidgetEventFilter, MayaGroupBox, BlockLabel, BlockLabelsList
+from .widgets import ResizeScrollAreaWidgetEventFilter, MayaGroupBox, BlockLabelsList
 from .widgets import ClickableLabel, EditableLabel
-reload(MayaGroupBox)
+reload(BlockLabelsList)
 
 
 NodeData = namedtuple("NodeData", ["name", "path"])
@@ -209,6 +209,7 @@ class NodesFoundWidget(MayaGroupBox.MayaGroupBox):
 
 
 class FindSpecsWidget(QWidget):
+	__new_spec_mode_on = False
 	__editable = False
 	__specs_id = None
 	__specs = None
@@ -267,10 +268,10 @@ class FindSpecsWidget(QWidget):
 		specs_form_layout.setContentsMargins(0, 0, 0, 0)
 		specs_form_layout.setAlignment(Qt.AlignVCenter)
 		specs_form_layout.setColumnStretch(0, 0)
-		specs_form_layout.setColumnStretch(1, 2)
+		specs_form_layout.setColumnStretch(1, 1)
 		specs_form_layout.setColumnStretch(2, 0)
 
-		specs_box_size_policy = QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
+		specs_box_size_policy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
 		specs_box_size_policy.setHorizontalStretch(1)
 
 		self.__specs_box.contentLayout().addLayout(specs_form_layout)
@@ -373,9 +374,15 @@ class FindSpecsWidget(QWidget):
 		if self.editable is False:
 			self.editable = True
 			self.__edit_specs_button.setText("Save")
+
+			if self.__new_spec_mode_on is False:
+				self.enableNewSpecForm()
 		else:
 			self.editable = False
 			self.__edit_specs_button.setText("Edit")
+
+			if self.__new_spec_mode_on is True:
+				self.disableNewSpecForm()
 
 	def getSpecsId(self):
 		return self.__specs_id
@@ -435,7 +442,8 @@ class FindSpecsWidget(QWidget):
 			value_edit_label = EditableLabel.EditableLabel(specData.value, self.__specs_box)
 			value_edit_label.displayButtons = False
 			value_edit_label.editable = self.editable
-			value_edit_label.setValidator(QRegExpValidator(QRegExp("[a-zA-Z0-9_]*")))
+			value_edit_label.setValidator(QRegExpValidator(QRegExp("[a-zA-Z0-9_]+")))
+			value_edit_label.setPlaceholderText("Enter a %s value" % specData.name)
 
 			specs_form_layout.addWidget(spec_type_label, prev_to_last_row, 0)
 			specs_form_layout.addWidget(value_edit_label, prev_to_last_row, 1)
@@ -445,7 +453,7 @@ class FindSpecsWidget(QWidget):
 			block_labels_list.editable = self.editable
 			block_labels_list.setAlignment(Qt.AlignLeft)
 			#block_labels_list.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred))
-			block_labels_list.setValidator(QRegExpValidator(QRegExp("[a-zA-Z0-9_]*")))
+			block_labels_list.setValidator(QRegExpValidator(QRegExp("[a-zA-Z0-9_]+")))
 			#####################################
 			palette = block_labels_list.palette()
 			palette.setBrush(QPalette.Active, QPalette.Window, QBrush(QColor(255, 255, 0)))
@@ -473,17 +481,19 @@ class FindSpecsWidget(QWidget):
 		self.specAdded[None].emit()
 
 		self.disableNewSpecForm()
+		self.enableNewSpecForm()
 
 	def getNodesList(self):
 		return self.__nodes_found_widget.nodesList
 
 	@Slot()
 	def enableNewSpecForm(self):
+		if self.__new_spec_mode_on is True:
+			return
+
 		form_layout = self.findChild(QGridLayout)
 
 		self.__new_spec_type_combo = QComboBox(self)
-		self.__new_spec_type_combo.addItems(self.__specs_types.keys())
-		self.__new_spec_type_combo.currentTextChanged.connect(self.enableSpecEditElements)
 		#self.__new_spec_type_combo.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Maximum))
 
 		self.__new_spec_line_edit = EditableLabel.EditableLabel(self)
@@ -491,7 +501,7 @@ class FindSpecsWidget(QWidget):
 		self.__new_spec_line_edit.displayButtons = False
 		self.__new_spec_line_edit.setEnabled(False)
 		self.__new_spec_line_edit.setVisible(False)
-		self.__new_spec_line_edit.setValidator(QRegExpValidator(QRegExp("[a-zA-Z0-9_]*")))
+		self.__new_spec_line_edit.setValidator(QRegExpValidator(QRegExp("[a-zA-Z0-9_]+")))
 		self.__new_spec_line_edit.changeDiscarded.connect(self.disableNewSpecForm)
 		self.__new_spec_line_edit.changed[None].connect(self.__acceptSpecs)
 
@@ -501,7 +511,7 @@ class FindSpecsWidget(QWidget):
 		self.__new_spec_block_labels_list.setVisible(False)
 		self.__new_spec_block_labels_list.setAlignment(Qt.AlignLeft)
 		#self.__new_spec_block_labels_list.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred))
-		self.__new_spec_block_labels_list.setValidator(QRegExpValidator(QRegExp("[a-zA-Z0-9_]*")))
+		self.__new_spec_block_labels_list.setValidator(QRegExpValidator(QRegExp("[a-zA-Z0-9_]+")))
 		#####################################
 		palette = self.__new_spec_block_labels_list.palette()
 		palette.setBrush(QPalette.Active, QPalette.Window, QBrush(QColor(255, 255, 0)))
@@ -547,7 +557,11 @@ class FindSpecsWidget(QWidget):
 		form_layout.addWidget(self.__new_spec_elements_widget, last_row, 1)
 		form_layout.addWidget(self.__new_spec_buttons_widget, last_row, 2)
 
+		self.__new_spec_type_combo.currentTextChanged.connect(self.enableSpecEditElements)
+		self.__new_spec_type_combo.addItems(self.__specs_types.keys())
+
 		self.__specs_box.resize(form_layout.sizeHint())
+		self.__new_spec_mode_on = True
 
 	@Slot(str)
 	def enableSpecEditElements(self, specType):
@@ -629,6 +643,8 @@ class FindSpecsWidget(QWidget):
 		self.__new_spec_buttons_widget.setParent(None)
 		specs_form_layout.removeWidget(self.__new_spec_buttons_widget)
 		self.__new_spec_buttons_widget.deleteLater()
+
+		self.__new_spec_mode_on = False
 
 	@Slot()
 	def disableSpecEditElements(self):

@@ -1,5 +1,5 @@
 from PySide2.QtWidgets import QLayout, QWidgetItem
-from PySide2 import QtCore
+from PySide2.QtCore import QSize, QRect, Qt, QPoint
 
 
 class FlowLayout(QLayout):
@@ -7,11 +7,15 @@ class FlowLayout(QLayout):
 	"""Custom layout that mimics the behaviour of a flow layout"""
 
 	def __init__(self, parent=None, margin=0, spacing=-1):
-		"""Create a new FlowLayout instance.
+		"""
+		Create a new FlowLayout instance.
 		This layout will reorder the items automatically.
+
 		@param parent (QWidget)
 		@param margin (int)
-		@param spacing (int)"""
+		@param spacing (int)
+		"""
+
 		super(FlowLayout, self).__init__(parent)
 		# Set margin and spacing
 
@@ -72,17 +76,37 @@ class FlowLayout(QLayout):
 		except IndexError:
 			return None
 
-	def insertWidget(self, index, widget):
+	def insertItem(self, index, item):
 		"""Insert a widget at a given index
 		@param index (int)
 		@param widget (QWidget)"""
 
-		item = QWidgetItem(widget)
-
 		self.item_list.insert(index, item)
+
+		'''contents_rect = QRect(self.geometry())
+		print("Rect: {}".format(contents_rect))
+		minimum_height = self.heightForWidth(contents_rect.width())
+		contents_rect.setHeight()
+		print("New Rect: {}".format(contents_rect))
+
+		self.setGeometry(contents_rect)'''
+
+	def insertWidget(self, index, widget):
+		contents_rect = QRect(self.geometry())
+
+		self.insertItem(index, QWidgetItem(widget))
+
+		widget.show()
+		minimum_height = self.heightForWidth(contents_rect.width())
+
+		if minimum_height < contents_rect.height():
+			contents_rect.setHeight(minimum_height)
+
+		self.setGeometry(contents_rect)
 
 	def addLayout(self, layout):
 		self.item_list.append(layout)
+
 		super(FlowLayout, self).addChildLayout(layout)
 
 	def expandingDirections(self):
@@ -91,7 +115,7 @@ class FlowLayout(QLayout):
 		This layout grows only in the horizontal dimension
 		"""
 
-		return QtCore.Qt.Orientations(QtCore.Qt.Horizontal)
+		return Qt.Orientations(Qt.Horizontal)
 
 	def hasHeightForWidth(self):
 		"""
@@ -108,13 +132,14 @@ class FlowLayout(QLayout):
 		Get the preferred height a layout item with the given width
 		@param width (int)
 		"""
+
 		contents_margins = self.contentsMargins()
 
 		height = self.doLayout(
-			QtCore.QRect(0 + contents_margins.left(), 0 + contents_margins.top(), width, 0),
+			QRect(0 + contents_margins.left(), 0 + contents_margins.top(), width, 0),
 			True
 		)
-
+		print("From height for width: {} | {}".format(width, height))
 		return height
 
 	def setGeometry(self, rect):
@@ -138,9 +163,9 @@ class FlowLayout(QLayout):
 		"""Get the minimum size of this layout
 		@return (QSize)"""
 		# Calculate the size
-		size = QtCore.QSize()
-		height = QtCore.QSize()
-		width = QtCore.QSize()
+		size = QSize()
+		height = QSize()
+		width = QSize()
 
 		parent_widget = self.parentWidget()
 		if parent_widget not in [None, 0]:
@@ -154,26 +179,26 @@ class FlowLayout(QLayout):
 				width = width.expandedTo(item_min_size)
 				height += item_min_size
 
-		size += QtCore.QSize(2 * self.margin(), 2 * self.margin())
+		size += QSize(2 * self.margin(), 2 * self.margin())
 		return size
 
 	def minimumSize(self):
 		"""Get the minimum size of this layout
 		@return (QSize)"""
 		# Calculate the size
-		size = QtCore.QSize()
-		height = QtCore.QSize()
-		width = QtCore.QSize()
+		size = QSize()
+		height = QSize()
+		width = QSize()
 
 		for item in self.item_list:
-			item_min_size = item.minimumSize()
+			item_min_size = item.sizeHint()
 			size = size.expandedTo(item_min_size)
 			width = width.expandedTo(item_min_size)
 			height += item_min_size
 
 		contents_margins = self.contentsMargins()
 
-		size += QtCore.QSize(
+		size += QSize(
 			(2 * self.margin()) + contents_margins.left() + contents_margins.right(),
 			(2 * self.margin()) + contents_margins.top() + contents_margins.bottom()
 		)
@@ -189,6 +214,7 @@ class FlowLayout(QLayout):
 		@param rect (QRect) Rect where in the items have to be laid out
 		@param testOnly (boolean) Do the actual layout
 		"""
+
 		x = rect.x()
 		y = rect.y()
 		lineHeight = 0
@@ -206,7 +232,7 @@ class FlowLayout(QLayout):
 				lineHeight = 0
 
 			if not testOnly:
-				item.setGeometry(QtCore.QRect(QtCore.QPoint(x, y), item.sizeHint()))
+				item.setGeometry(QRect(QPoint(x, y), item.sizeHint()))
 
 			x = nextX
 			lineHeight = max(lineHeight, item.sizeHint().height())

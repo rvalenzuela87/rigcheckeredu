@@ -189,6 +189,9 @@ class EditableLabel(QWidget):
     def setValidator(self, validator):
         self.label_edit.setValidator(validator)
 
+    def setPlaceholderText(self, text):
+        self.label_edit.setPlaceholderText(text)
+
     def setMaxLength(self, max):
         self.label_edit.setMaxLength(max)
 
