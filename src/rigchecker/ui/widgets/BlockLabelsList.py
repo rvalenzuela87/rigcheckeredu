@@ -2,7 +2,7 @@ from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QSizePolicy
 from PySide2.QtCore import Signal, Slot, Property, Qt
 
 from . import BlockLabel, ClickableLabel, EscapableLineEdit, FlowLayout
-reload(BlockLabel)
+reload(FlowLayout)
 
 
 class BlockLabelsList(QWidget):

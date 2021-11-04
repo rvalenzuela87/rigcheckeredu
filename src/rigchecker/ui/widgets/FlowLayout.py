@@ -185,18 +185,28 @@ class FlowLayout(QLayout):
 	def minimumSize(self):
 		"""Get the minimum size of this layout
 		@return (QSize)"""
+
 		# Calculate the size
-		size = QSize()
-		height = QSize()
-		width = QSize()
+		contents_margins = self.contentsMargins()
+		size = QSize(
+			contents_margins.left() + contents_margins.right(),
+			contents_margins.top() + contents_margins.bottom()
+		)
+		height = (len(self.item_list) - 1) * self.spacing()
+		width = 0
+
+		for i, item in enumerate(self.item_list):
+			width = max(width, item.sizeHint().width())
+			height += item.sizeHint().height()
+
+		size += QSize(width, height)
+		return size
 
 		for item in self.item_list:
-			item_min_size = item.sizeHint()
+			item_min_size = QSize(item.sizeHint())
 			size = size.expandedTo(item_min_size)
 			width = width.expandedTo(item_min_size)
 			height += item_min_size
-
-		contents_margins = self.contentsMargins()
 
 		size += QSize(
 			(2 * self.margin()) + contents_margins.left() + contents_margins.right(),
@@ -231,7 +241,7 @@ class FlowLayout(QLayout):
 				nextX = x + item.sizeHint().width() + spaceX
 				lineHeight = 0
 
-			if not testOnly:
+			if testOnly is False:
 				item.setGeometry(QRect(QPoint(x, y), item.sizeHint()))
 
 			x = nextX

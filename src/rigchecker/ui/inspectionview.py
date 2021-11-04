@@ -262,11 +262,11 @@ class FindSpecsWidget(QWidget):
 		self.__add_spec_button.setVisible(self.__editable)
 
 		self.__specs_box = MayaGroupBox.MayaGroupBox("Finding Specs", self)
-		self.__specs_box.setContentLayout(QVBoxLayout(self.__specs_box))
+		self.__specs_box.setLayout(QVBoxLayout(self.__specs_box))
 
 		specs_form_layout = QGridLayout(self.__specs_box)
 		specs_form_layout.setContentsMargins(0, 0, 0, 0)
-		specs_form_layout.setAlignment(Qt.AlignVCenter)
+		#specs_form_layout.setAlignment(Qt.AlignVCenter)
 		specs_form_layout.setColumnStretch(0, 0)
 		specs_form_layout.setColumnStretch(1, 1)
 		specs_form_layout.setColumnStretch(2, 0)
@@ -274,7 +274,7 @@ class FindSpecsWidget(QWidget):
 		specs_box_size_policy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
 		specs_box_size_policy.setHorizontalStretch(1)
 
-		self.__specs_box.contentLayout().addLayout(specs_form_layout)
+		self.__specs_box.layout().addLayout(specs_form_layout)
 
 		self.__results_box = MayaGroupBox.MayaGroupBox("Results", self)
 		self.__results_box.setContentLayout(QVBoxLayout(self.__results_box))
@@ -299,7 +299,7 @@ class FindSpecsWidget(QWidget):
 		new_spec_layout.addWidget(self.__add_spec_button)
 		new_spec_layout.addWidget(self.__edit_specs_button)
 
-		self.__specs_box.contentLayout().addLayout(new_spec_layout)
+		self.__specs_box.layout().addLayout(new_spec_layout)
 
 		# Build results box
 		select_all_nodes_found_button = QPushButton("Sel", self)

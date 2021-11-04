@@ -81,7 +81,7 @@ class MayaGroupBox(QWidget):
     __titleAlignment = Qt.AlignCenter
     __layoutMargins = None
     __flat = False
-    __borderSize = 1.0
+    __borderSize = 2
     __borderRadius = 5
     __outlineColor = None
     __fillColor = None
@@ -105,14 +105,18 @@ class MayaGroupBox(QWidget):
 
         super(MayaGroupBox, self).setContentsMargins(QMargins(0, self.__calcTitleHeight(), 0, 0))
         super(MayaGroupBox, self).setMouseTracking(True)
-        super(MayaGroupBox, self).setLayout(QVBoxLayout(self))
+
+        content_layout = QVBoxLayout(self)
+        content_layout.setContentsMargins(0, 0, 0, 0)
 
         self.__contentWidget = QWidget(self)
-        super(MayaGroupBox, self).layout().addWidget(self.__contentWidget)
-        #self.installEventFilter(EventFilterTest(self))
+
+        content_layout.addWidget(self.__contentWidget)
+        super(MayaGroupBox, self).setLayout(content_layout)
 
     def __calcTitleHeight(self):
-        title_height = 10.0 + QFontMetrics(self.font()).boundingRect(self.title).height() + 10.0
+        title_height = self.titleMargins.top() + QFontMetrics(self.font()).boundingRect(self.title).height() + self.titleMargins.bottom()
+
         return title_height
 
     def titleRect(self):
@@ -227,10 +231,12 @@ class MayaGroupBox(QWidget):
         # Assume the widget needs to repaint itself and not only a region inside it
 
         # Start painting the title section
-        title_rect = QRectF(self.rect())
-        title_rect.setHeight(self.__calcTitleHeight())
-
         contents_rect = QRectF(self.rect())
+        contents_clip_rect = QRectF(contents_rect)
+
+        title_rect = QRectF(contents_rect)
+        title_rect.setHeight(self.__calcTitleHeight())
+        title_clip_rect = QRectF(title_rect)
 
         # Slightly shrink dimensions to account for borderSize if anti aliasing is set to false
         if self.antiAlias is False:
@@ -239,14 +245,40 @@ class MayaGroupBox(QWidget):
 
             title_rect.adjust(left_adjust, left_adjust, right_adjust, right_adjust)
             contents_rect.adjust(left_adjust, left_adjust, right_adjust, right_adjust)
+        else:
+            # When antialiasing is on, the border width will be distributed, equally, outside and inside the
+            # rectangle. Therefore, adjust the rectangle accordingly so the borders get painted inside the
+            # calculated geometry
+            half_border_size = float(self.borderSize) * 0.5
+            title_rect.adjust(half_border_size, half_border_size, half_border_size * -1.0, half_border_size * -1.0)
+            contents_rect.adjust(half_border_size, half_border_size, half_border_size * -1.0, half_border_size * -1.0)
+
+        # Start painting the contents border
+        contents_border_path = QPainterPath()
+        contents_border_path.addRoundedRect(contents_rect, self.borderRadius, self.borderRadius)
+
+        contents_clip_path = QPainterPath()
+        contents_clip_path.addRoundedRect(contents_clip_rect, self.borderRadius, self.borderRadius)
+
+        contents_border_painter = QPainter(self)
+
+        if self.antiAlias is True:
+            contents_border_painter.setRenderHint(QPainter.Antialiasing)
+
+        contents_border_painter.setClipPath(contents_clip_path)
+
+        if self.borderSize > 0:
+            contents_border_pen = QPen(self.outlineColor, self.borderSize)
+            contents_border_painter.strokePath(contents_border_path, contents_border_pen)
 
         # Create the title rounded border path
         title_border_path = QPainterPath()
         title_border_path.addRoundedRect(title_rect, self.borderRadius, self.borderRadius)
 
+        title_clip_path = QPainterPath()
+        title_clip_path.addRoundedRect(title_clip_rect, self.borderRadius, self.borderRadius)
+
         # Set painter colors to given values.
-        title_border_pen = QPen(self.outlineColor, self.borderSize)
-        title_text_pen = QPen(self.textColor, self.borderSize)
         title_border_brush = QBrush(self.fillColor)
 
         # Create the painter
@@ -255,41 +287,48 @@ class MayaGroupBox(QWidget):
         if self.antiAlias is True:
             title_painter.setRenderHint(QPainter.Antialiasing)
 
-        title_painter.setPen(title_border_pen)
-        title_painter.setBrush(title_border_brush)
-        title_painter.setClipPath(title_border_path)
+        title_painter.setClipPath(title_clip_path)
 
         # Fill shape, draw the border and center the text.
-        title_painter.fillPath(title_border_path, title_painter.brush())
-        title_painter.strokePath(title_border_path, title_painter.pen())
+        title_painter.fillPath(title_border_path, title_border_brush)
+
+        if self.borderSize > 0:
+            title_border_pen = QPen(self.outlineColor, self.borderSize)
+            title_painter.strokePath(title_border_path, title_border_pen)
 
         # Adjust the title rectangle to consider the title margins
-        try:
-            title_rect.adjust(
-                self.titleMargins.left(), self.titleMargins.top(),
-                self.titleMargins.right() * -1, self.titleMargins.bottom() * -1
-            )
-        except AttributeError:
-            pass
+        title_align = self.titleAlignment
+        title_metrics = QFontMetrics(self.font())
+        title_width = title_metrics.width(self.title)
+        title_bound_rect = title_metrics.boundingRect(self.title)
+        title_contents_rect = QRectF(title_clip_rect)
+        title_contents_rect.adjust(
+            self.titleMargins.left(), self.titleMargins.top(),
+            self.titleMargins.right() * -1, self.titleMargins.bottom() * -1
+        )
+        text_drawing_rect = QRect(
+            title_contents_rect.x() + title_contents_rect.width() * 0.5 - title_width * 0.5,
+            title_contents_rect.y() + title_contents_rect.height() * 0.5 - title_bound_rect.height() * 0.5,
+            title_width, title_bound_rect.height()
+        )
+
+        if title_align == Qt.AlignTop or title_align == Qt.AlignLeft | Qt.AlignTop or title_align == Qt.AlignRight | Qt.AlignTop:
+            text_drawing_rect.moveTop(title_contents_rect.y())
+        elif title_align == Qt.AlignBottom or title_align == Qt.AlignLeft | Qt.AlignBottom or title_align == Qt.AlignRight | Qt.AlignBottom:
+            text_drawing_rect.moveTop(title_contents_rect.y() + title_contents_rect.height() - title_bound_rect.height())
+
+        if title_align == Qt.AlignLeft or title_align == Qt.AlignLeft | Qt.AlignVCenter or title_align == Qt.AlignLeft | Qt.AlignTop or title_align == Qt.AlignLeft | Qt.AlignBottom:
+            text_drawing_rect.moveLeft(title_contents_rect.x())
+        elif title_align == Qt.AlignRight or title_align == Qt.AlignRight | Qt.AlignVCenter or title_align == Qt.AlignRight | Qt.AlignTop or title_align == Qt.AlignRight | Qt.AlignBottom:
+            text_drawing_rect.moveLeft(title_contents_rect.x() + title_contents_rect.width() - title_bound_rect.width())
+
+        if self.borderSize > 0:
+            title_text_pen = QPen(self.textColor, self.borderSize)
+        else:
+            title_text_pen = QPen(self.textColor, 2)
 
         title_painter.setPen(title_text_pen)
-        title_painter.drawText(title_rect, self.titleAlignment, self.title)
-
-        # Start painting the contents border
-        contents_border_path = QPainterPath()
-        contents_border_path.addRoundedRect(contents_rect, self.borderRadius, self.borderRadius)
-
-        contents_border_pen = QPen(self.outlineColor, self.borderSize)
-
-        contents_border_painter = QPainter(self)
-
-        if self.antiAlias is True:
-            contents_border_painter.setRenderHint(QPainter.Antialiasing)
-
-        contents_border_painter.setPen(contents_border_pen)
-        contents_border_painter.setClipPath(contents_border_path)
-
-        contents_border_painter.strokePath(contents_border_path, contents_border_painter.pen())
+        title_painter.drawText(text_drawing_rect, self.titleAlignment, self.title)
 
     def sizeHint(self):
         """
