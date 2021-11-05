@@ -139,7 +139,7 @@ class FlowLayout(QLayout):
 			QRect(0 + contents_margins.left(), 0 + contents_margins.top(), width, 0),
 			True
 		)
-		print("From height for width: {} | {}".format(width, height))
+
 		return height
 
 	def setGeometry(self, rect):

@@ -2,7 +2,7 @@ from PySide2.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QSizePolicy
 from PySide2.QtCore import Signal, Slot, Property, Qt
 
 from . import BlockLabel, ClickableLabel, EscapableLineEdit, FlowLayout
-reload(FlowLayout)
+reload(BlockLabel)
 
 
 class BlockLabelsList(QWidget):
@@ -129,5 +129,4 @@ class BlockLabelsList(QWidget):
         self.__add_line_edit.setValidator(validator)
 
     labels = Property(list, getLabels, setLabels)
-    #blockLabels = Property(list, blockLabels, None)
     editable = Property(bool, isEditable, setEditable)

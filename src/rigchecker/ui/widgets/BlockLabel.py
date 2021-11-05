@@ -39,9 +39,9 @@ class BlockLabel(QLabel):
             else:
                 contents_margins.setLeft(contents_margins.left() + self.__closeButtonRect().width() + contents_margins.left())
 
-        self.__textColor = QColor(255, 255, 255)
-        self.__outlineColor = QColor(255, 255, 255)
-        self.__fillColor = QColor(255, 0, 0)
+        self.__textColor = QColor(200, 200, 200)
+        self.__outlineColor = QColor(100, 100, 100)
+        self.__fillColor = QColor(72, 72, 72)
         self.__borderSize = 2
 
         self.setMargins(contents_margins)

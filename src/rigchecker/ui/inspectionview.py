@@ -455,10 +455,10 @@ class FindSpecsWidget(QWidget):
 			#block_labels_list.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred))
 			block_labels_list.setValidator(QRegExpValidator(QRegExp("[a-zA-Z0-9_]+")))
 			#####################################
-			palette = block_labels_list.palette()
+			'''palette = block_labels_list.palette()
 			palette.setBrush(QPalette.Active, QPalette.Window, QBrush(QColor(255, 255, 0)))
 			block_labels_list.setPalette(palette)
-			block_labels_list.setAutoFillBackground(True)
+			block_labels_list.setAutoFillBackground(True)'''
 			#####################################
 
 			specs_form_layout.addWidget(spec_type_label, prev_to_last_row, 0)
@@ -513,10 +513,10 @@ class FindSpecsWidget(QWidget):
 		#self.__new_spec_block_labels_list.setSizePolicy(QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Preferred))
 		self.__new_spec_block_labels_list.setValidator(QRegExpValidator(QRegExp("[a-zA-Z0-9_]+")))
 		#####################################
-		palette = self.__new_spec_block_labels_list.palette()
+		'''palette = self.__new_spec_block_labels_list.palette()
 		palette.setBrush(QPalette.Active, QPalette.Window, QBrush(QColor(255, 255, 0)))
 		self.__new_spec_block_labels_list.setPalette(palette)
-		self.__new_spec_block_labels_list.setAutoFillBackground(True)
+		self.__new_spec_block_labels_list.setAutoFillBackground(True)'''
 		#####################################
 		accept_target_alias_edit_pixmap = QPixmap(
 			os.path.join(os.environ["ICONS_DIR"], "checkbox-circle-fill.png")
