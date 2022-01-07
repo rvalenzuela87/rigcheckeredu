@@ -9,8 +9,6 @@ from PySide2.QtCore import Qt, Signal, Slot, QRegExp, Property, QObject
 from . import configcontroller
 from .widgets import FlowLayout, ClickableLabel, ResizeScrollAreaWidgetEventFilter
 from .. import getconf
-reload(getconf)
-reload(configcontroller)
 
 
 class BlockLabel(QWidget):
