@@ -9,3 +9,5 @@ guidelines regarding naming convention and hierarchy.
 
 By using this tool the rigging student can make sure the rig's parts, i.e. its controls, geometry and different
 hierarchy groups, are discoverable when following the project's guidelines.
+
+By now, this tool remains a work in progress.
